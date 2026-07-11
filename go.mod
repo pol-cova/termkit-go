@@ -1,4 +1,4 @@
-module github.com/pol-cova/ditherkit-go
+module github.com/pol-cova/termkit-go
 
 go 1.24.0
 

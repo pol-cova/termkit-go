@@ -1,4 +1,4 @@
-package ditherkit
+package chart
 
 import (
 	"fmt"

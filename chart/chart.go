@@ -1,8 +1,8 @@
-// Package ditherkit renders compact, interactive-friendly charts for terminals.
+// Package chart renders compact, interactive-friendly charts for terminals.
 //
 // It is a clean-room Go implementation inspired by the category of dithered
 // chart interfaces; it does not include source code from Dither Kit.
-package ditherkit
+package chart
 
 import "fmt"
 
@@ -33,17 +33,17 @@ type Chart struct {
 
 func (c Chart) validate() error {
 	if len(c.Series) == 0 {
-		return fmt.Errorf("ditherkit: chart requires at least one series")
+		return fmt.Errorf("termkit/chart: chart requires at least one series")
 	}
 	if c.Kind != Area && c.Kind != Line && c.Kind != Bar && c.Kind != Pie && c.Kind != Radar {
-		return fmt.Errorf("ditherkit: unsupported chart kind %q", c.Kind)
+		return fmt.Errorf("termkit/chart: unsupported chart kind %q", c.Kind)
 	}
 	for _, s := range c.Series {
 		if len(s.Values) == 0 {
-			return fmt.Errorf("ditherkit: series %q has no values", s.Name)
+			return fmt.Errorf("termkit/chart: series %q has no values", s.Name)
 		}
 		if len(c.Labels) > 0 && len(s.Values) != len(c.Labels) {
-			return fmt.Errorf("ditherkit: series %q has %d values for %d labels", s.Name, len(s.Values), len(c.Labels))
+			return fmt.Errorf("termkit/chart: series %q has %d values for %d labels", s.Name, len(s.Values), len(c.Labels))
 		}
 	}
 	return nil

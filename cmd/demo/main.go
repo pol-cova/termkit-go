@@ -3,22 +3,28 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/charmbracelet/bubbletea"
-	ditherkit "github.com/pol-cova/ditherkit-go"
+	"github.com/pol-cova/termkit-go/animate"
+	"github.com/pol-cova/termkit-go/chart"
+	"github.com/pol-cova/termkit-go/component"
 )
 
 type model struct {
 	kind, selected, series int
 	width, height          int
+	frame                  int
 }
 
-var kinds = []ditherkit.Kind{ditherkit.Area, ditherkit.Line, ditherkit.Bar, ditherkit.Pie, ditherkit.Radar}
+type frame struct{}
+
+var kinds = []chart.Kind{chart.Area, chart.Line, chart.Bar, chart.Pie, chart.Radar}
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--static" {
-		chart, _ := ditherkit.Render(sample(kinds[0]), ditherkit.Options{Width: 58, Height: 13, Selected: 2, Color: true})
-		fmt.Println(chart)
+		view, _ := chart.Render(sample(kinds[0]), chart.Options{Width: 58, Height: 13, Selected: 2, Color: true})
+		fmt.Println(view)
 		return
 	}
 	if _, err := tea.NewProgram(model{width: 68, height: 15}, tea.WithAltScreen()).Run(); err != nil {
@@ -27,14 +33,16 @@ func main() {
 	}
 }
 
-func (m model) Init() tea.Cmd { return nil }
+func (m model) Init() tea.Cmd { return nextFrame() }
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyMsg); ok {
-		switch key.String() {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "1", "2", "3", "4", "5":
-			m.kind = int(key.String()[0] - '1')
+			m.kind = int(msg.String()[0] - '1')
 		case "left", "h":
 			m.selected = max(0, m.selected-1)
 		case "right", "l":
@@ -42,24 +50,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "tab":
 			m.series = (m.series + 1) % 2
 		}
-	}
-	if size, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width = max(44, size.Width-4)
-		m.height = max(8, size.Height-9)
+	case tea.WindowSizeMsg:
+		m.width = max(44, msg.Width-4)
+		m.height = max(8, msg.Height-9)
+	case frame:
+		m.frame++
+		return m, nextFrame()
 	}
 	return m, nil
 }
+
 func (m model) View() string {
 	c := sample(kinds[m.kind])
-	c.Title = "ditherkit-go  /  " + string(c.Kind) + " chart"
-	chart, err := ditherkit.Render(c, ditherkit.Options{Width: m.width, Height: m.height, Selected: m.selected, ActiveSeries: m.series, Color: true})
+	c.Title = "termkit-go  /  " + string(c.Kind) + " chart"
+	view, err := chart.Render(c, chart.Options{Width: m.width, Height: m.height, Selected: m.selected, ActiveSeries: m.series, Color: true})
 	if err != nil {
 		return err.Error()
 	}
-	return chart + "\n\n  1–5 chart type  •  ←/→ select point  •  tab series  •  q quit\n"
+	motion := animate.Tween(float64(m.frame%40)/39, animate.EaseInOut)
+	widgets := component.Badge("LIVE", component.Success) + "  " + component.Progress("CPU", motion, 14, component.Accent) + "   " + component.Gauge("memory", 1-motion*.45, 12, component.Success) + "   " + component.SpinnerFrame(m.frame, "sampling", component.Warning)
+	footer := component.StatusBar(component.StatusBarOptions{
+		Left:  []component.Segment{{Text: "1–5 chart", Tone: component.Accent}, {Text: "←/→ scrub"}, {Text: "tab series"}},
+		Right: fmt.Sprintf("motion %.0f%%", motion*100),
+	})
+	return view + "\n\n" + widgets + "\n" + footer + "\n"
 }
-func sample(kind ditherkit.Kind) ditherkit.Chart {
-	return ditherkit.Chart{Kind: kind, Labels: []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}, Series: []ditherkit.Series{{Name: "desktop", Values: []float64{18, 42, 29, 68, 53, 76}}, {Name: "mobile", Values: []float64{25, 17, 56, 39, 72, 46}}}}
+
+func sample(kind chart.Kind) chart.Chart {
+	return chart.Chart{Kind: kind, Labels: []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}, Series: []chart.Series{{Name: "desktop", Values: []float64{18, 42, 29, 68, 53, 76}}, {Name: "mobile", Values: []float64{25, 17, 56, 39, 72, 46}}}}
+}
+func nextFrame() tea.Cmd {
+	return tea.Tick(75*time.Millisecond, func(time.Time) tea.Msg { return frame{} })
 }
 func max(a, b int) int {
 	if a > b {
