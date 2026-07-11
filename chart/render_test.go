@@ -36,3 +36,19 @@ func TestRenderClampsSelection(t *testing.T) {
 		t.Fatalf("selection was not clamped: %s", got)
 	}
 }
+
+func TestRenderSupportsDitherKitStyleStacks(t *testing.T) {
+	c := example(Area)
+	c.StackType = Stacked
+	c.Series[0].Variant = Dotted
+	c.Series[1].Variant = Hatched
+	got, err := Render(c, Options{Width: 48, Height: 10, Color: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{"Mon", "desktop", "mobile", "╱"} {
+		if !strings.Contains(got, expected) {
+			t.Fatalf("stacked chart is missing %q:\n%s", expected, got)
+		}
+	}
+}

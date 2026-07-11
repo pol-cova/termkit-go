@@ -1,7 +1,4 @@
-// Package chart renders compact, interactive-friendly charts for terminals.
-//
-// It is a clean-room Go implementation inspired by the category of dithered
-// chart interfaces; it does not include source code from Dither Kit.
+// Package chart renders dithered, interactive-friendly charts for terminals.
 package chart
 
 import "fmt"
@@ -17,18 +14,39 @@ const (
 	Radar Kind = "radar"
 )
 
+// Variant controls the texture used for a series fill.
+type Variant string
+
+const (
+	Gradient Variant = "gradient"
+	Dotted   Variant = "dotted"
+	Hatched  Variant = "hatched"
+	Solid    Variant = "solid"
+)
+
+// StackType controls how cartesian series share vertical space.
+type StackType string
+
+const (
+	Default StackType = "default"
+	Stacked StackType = "stacked"
+	Percent StackType = "percent"
+)
+
 // Series supplies one named measure. Values are aligned with Chart.Labels.
 type Series struct {
-	Name   string
-	Values []float64
+	Name    string
+	Values  []float64
+	Variant Variant
 }
 
 // Chart is renderer-independent chart input.
 type Chart struct {
-	Kind   Kind
-	Title  string
-	Labels []string
-	Series []Series
+	Kind      Kind
+	Title     string
+	Labels    []string
+	Series    []Series
+	StackType StackType
 }
 
 func (c Chart) validate() error {
@@ -45,6 +63,9 @@ func (c Chart) validate() error {
 		if len(c.Labels) > 0 && len(s.Values) != len(c.Labels) {
 			return fmt.Errorf("termkit/chart: series %q has %d values for %d labels", s.Name, len(s.Values), len(c.Labels))
 		}
+	}
+	if c.StackType != "" && c.StackType != Default && c.StackType != Stacked && c.StackType != Percent {
+		return fmt.Errorf("termkit/chart: unsupported stack type %q", c.StackType)
 	}
 	return nil
 }

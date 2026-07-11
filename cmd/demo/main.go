@@ -52,7 +52,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		m.width = max(44, msg.Width-4)
-		m.height = max(8, msg.Height-9)
+		m.height = max(7, msg.Height-13)
 	case frame:
 		m.frame++
 		return m, nextFrame()
@@ -77,7 +77,17 @@ func (m model) View() string {
 }
 
 func sample(kind chart.Kind) chart.Chart {
-	return chart.Chart{Kind: kind, Labels: []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}, Series: []chart.Series{{Name: "desktop", Values: []float64{18, 42, 29, 68, 53, 76}}, {Name: "mobile", Values: []float64{25, 17, 56, 39, 72, 46}}}}
+	stack := chart.Default
+	if kind == chart.Area || kind == chart.Bar {
+		stack = chart.Stacked
+	}
+	return chart.Chart{
+		Kind: kind, Labels: []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}, StackType: stack,
+		Series: []chart.Series{
+			{Name: "desktop", Values: []float64{18, 42, 29, 68, 53, 76}, Variant: chart.Dotted},
+			{Name: "mobile", Values: []float64{25, 17, 56, 39, 72, 46}, Variant: chart.Hatched},
+		},
+	}
 }
 func nextFrame() tea.Cmd {
 	return tea.Tick(75*time.Millisecond, func(time.Time) tea.Msg { return frame{} })

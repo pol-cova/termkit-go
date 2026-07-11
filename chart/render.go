@@ -39,6 +39,9 @@ func Render(chart Chart, options Options) (string, error) {
 		b.WriteString(bold(chart.Title, options.Color) + "\n")
 	}
 	b.WriteString(strings.Join(plot, "\n"))
+	if chart.Kind == Area || chart.Kind == Line || chart.Kind == Bar {
+		b.WriteString("\n" + xAxis(chart, options))
+	}
 	b.WriteString("\n" + legend(chart, options))
 	b.WriteString("\n" + readout(chart, options))
 	return b.String(), nil
@@ -65,45 +68,20 @@ func normalized(o Options, c Chart) Options {
 
 func renderCartesian(c Chart, o Options, area, bars bool) []string {
 	grid := newGrid(o.Width, o.Height)
-	maxValue := maxSeries(c.Series)
-	if maxValue == 0 {
-		maxValue = 1
-	}
+	maxValue := chartMaximum(c)
 	for y := 0; y < o.Height; y++ {
 		for x := 0; x < o.Width; x++ {
 			if y == o.Height-1 {
-				grid.put(x, y, '─', mutedColor)
-			} else if y%3 == 0 {
+				grid.put(x, y, '·', mutedColor)
+			} else if y%4 == 0 {
 				grid.put(x, y, '·', mutedColor)
 			}
 		}
 	}
-	for si, s := range c.Series {
-		for i, v := range s.Values {
-			x := pointX(i, len(s.Values), o.Width)
-			y := o.Height - 1 - int(math.Round((v/maxValue)*float64(o.Height-1)))
-			if bars {
-				barWidth := max(1, o.Width/(len(s.Values)*len(c.Series)+1))
-				start := x - (len(c.Series)*barWidth)/2 + si*barWidth
-				for bx := start; bx < start+barWidth; bx++ {
-					for by := y; by < o.Height-1; by++ {
-						grid.put(bx, by, dither(bx, by, si), seriesColor(si))
-					}
-				}
-				continue
-			}
-			if area {
-				for by := y; by < o.Height-1; by++ {
-					grid.put(x, by, dither(x, by, si), seriesColor(si))
-				}
-			}
-			grid.put(x, y, '●', seriesColor(si))
-			if i > 0 {
-				px := pointX(i-1, len(s.Values), o.Width)
-				py := o.Height - 1 - int(math.Round((s.Values[i-1]/maxValue)*float64(o.Height-1)))
-				grid.line(px, py, x, y, '•', seriesColor(si))
-			}
-		}
+	if bars {
+		renderBars(grid, c, o, maxValue)
+	} else {
+		renderSeries(grid, c, o, maxValue, area)
 	}
 	sx := pointX(o.Selected, c.pointCount(), o.Width)
 	for y := 0; y < o.Height; y++ {
@@ -112,6 +90,155 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 		}
 	}
 	return grid.lines(o.Color)
+}
+
+func renderSeries(g grid, c Chart, o Options, maximum float64, fill bool) {
+	stacked := c.StackType == Stacked || c.StackType == Percent
+	for seriesIndex, series := range c.Series {
+		for x := 0; x < o.Width; x++ {
+			value := sampledValue(c, seriesIndex, x, o.Width)
+			base := 0.0
+			if stacked {
+				for before := 0; before < seriesIndex; before++ {
+					base += sampledValue(c, before, x, o.Width)
+				}
+			}
+			if c.StackType == Percent {
+				total := sampledTotal(c, x, o.Width)
+				if total > 0 {
+					value = value / total * 100
+					base = sampledBase(c, seriesIndex, x, o.Width) / total * 100
+				}
+			}
+			topY := plotY(base+value, maximum, o.Height)
+			baseY := plotY(base, maximum, o.Height)
+			if fill {
+				for y := topY; y < baseY; y++ {
+					g.put(x, y, fillRune(series.Variant, x, y, seriesIndex), seriesColor(seriesIndex))
+				}
+			}
+			g.put(x, topY, '•', seriesColor(seriesIndex))
+		}
+	}
+}
+
+func renderBars(g grid, c Chart, o Options, maximum float64) {
+	stacked := c.StackType == Stacked || c.StackType == Percent
+	count := c.pointCount()
+	barWidth := max(1, o.Width/(count*2))
+	if !stacked {
+		barWidth = max(1, o.Width/(count*(len(c.Series)+1)))
+	}
+	for point := 0; point < count; point++ {
+		x := pointX(point, count, o.Width)
+		rawBase := 0.0
+		total := pointTotal(c, point)
+		for si, s := range c.Series {
+			value := s.Values[point]
+			base := rawBase
+			if c.StackType == Percent && total > 0 {
+				value = value / total * 100
+				base = rawBase / total * 100
+			}
+			topY := plotY(base+value, maximum, o.Height)
+			baseY := plotY(base, maximum, o.Height)
+			start := x - barWidth/2
+			if !stacked {
+				start = x - (len(c.Series)*barWidth)/2 + si*barWidth
+			}
+			for px := start; px < start+barWidth; px++ {
+				for y := topY; y < baseY; y++ {
+					g.put(px, y, fillRune(s.Variant, px, y, si), seriesColor(si))
+				}
+			}
+			if stacked {
+				rawBase += s.Values[point]
+			}
+		}
+	}
+}
+
+func chartMaximum(c Chart) float64 {
+	if c.StackType == Percent {
+		return 100
+	}
+	maximum := maxSeries(c.Series)
+	if c.StackType == Stacked {
+		maximum = 0
+		for point := 0; point < c.pointCount(); point++ {
+			if total := pointTotal(c, point); total > maximum {
+				maximum = total
+			}
+		}
+	}
+	if maximum == 0 {
+		return 1
+	}
+	return maximum
+}
+func pointTotal(c Chart, point int) float64 {
+	total := 0.0
+	for _, series := range c.Series {
+		total += maxFloat(series.Values[point], 0)
+	}
+	return total
+}
+func sampledTotal(c Chart, x, width int) float64 {
+	total := 0.0
+	for i := range c.Series {
+		total += sampledValue(c, i, x, width)
+	}
+	return total
+}
+func sampledBase(c Chart, until, x, width int) float64 {
+	base := 0.0
+	for i := 0; i < until; i++ {
+		base += sampledValue(c, i, x, width)
+	}
+	return base
+}
+func sampledValue(c Chart, series, x, width int) float64 {
+	values := c.Series[series].Values
+	if len(values) == 1 {
+		return values[0]
+	}
+	position := float64(x) * float64(len(values)-1) / float64(max(1, width-1))
+	left := int(math.Floor(position))
+	right := min(left+1, len(values)-1)
+	return values[left] + (values[right]-values[left])*(position-float64(left))
+}
+func plotY(value, maximum float64, height int) int {
+	y := height - 1 - int(math.Round(value/maximum*float64(height-1)))
+	return min(height-1, max(0, y))
+}
+func fillRune(variant Variant, x, y, series int) rune {
+	switch variant {
+	case Solid:
+		return '█'
+	case Hatched:
+		return '╱'
+	case Dotted:
+		return '·'
+	default:
+		return []rune{'░', '▒', '▓', '█'}[(x+y+series)%4]
+	}
+}
+
+func xAxis(c Chart, o Options) string {
+	labels := make([]rune, o.Width)
+	for i := range labels {
+		labels[i] = ' '
+	}
+	for i, label := range c.Labels {
+		x := pointX(i, len(c.Labels), o.Width)
+		start := max(0, x-len([]rune(label))/2)
+		for offset, r := range []rune(label) {
+			if start+offset < len(labels) {
+				labels[start+offset] = r
+			}
+		}
+	}
+	return string(labels)
 }
 
 func renderPie(c Chart, o Options) []string {
@@ -129,7 +256,8 @@ func renderPie(c Chart, o Options) []string {
 	for y := 0; y < o.Height; y++ {
 		for x := 0; x < o.Width; x++ {
 			dx, dy := (float64(x)-cx)/rx, (float64(y)-cy)/ry
-			if dx*dx+dy*dy > 1 {
+			distance := dx*dx + dy*dy
+			if distance > 1 || distance < .20 {
 				continue
 			}
 			angle := math.Atan2(dy, dx) + math.Pi
@@ -142,9 +270,9 @@ func renderPie(c Chart, o Options) []string {
 					break
 				}
 			}
-			glyph := dither(x, y, index)
+			glyph := fillRune(Dotted, x, y, index)
 			if index == o.Selected {
-				glyph = '█'
+				glyph = '▓'
 			}
 			g.put(x, y, glyph, seriesColor(index))
 		}
@@ -163,11 +291,20 @@ func renderRadar(c Chart, o Options) []string {
 	}
 	for ring := 1; ring <= 3; ring++ {
 		r := radius * float64(ring) / 3
-		for i := 0; i < n; i++ {
+		points := make([][2]int, n)
+		for i := range points {
 			a := angle(i, n)
-			x, y := cx+int(math.Round(math.Cos(a)*r)), cy+int(math.Round(math.Sin(a)*r*.55))
-			g.put(x, y, '·', mutedColor)
+			points[i] = [2]int{cx + int(math.Round(math.Cos(a)*r)), cy + int(math.Round(math.Sin(a)*r*.55))}
 		}
+		for i, point := range points {
+			next := points[(i+1)%n]
+			g.line(point[0], point[1], next[0], next[1], '·', mutedColor)
+		}
+	}
+	for i := 0; i < n; i++ {
+		a := angle(i, n)
+		x, y := cx+int(math.Round(math.Cos(a)*radius)), cy+int(math.Round(math.Sin(a)*radius*.55))
+		g.line(cx, cy, x, y, '·', mutedColor)
 	}
 	for si, s := range c.Series {
 		points := make([][2]int, n)
@@ -176,13 +313,33 @@ func renderRadar(c Chart, o Options) []string {
 			r := radius * v / maxValue
 			points[i] = [2]int{cx + int(math.Round(math.Cos(a)*r)), cy + int(math.Round(math.Sin(a)*r*.55))}
 		}
+		for y := 0; y < o.Height; y++ {
+			for x := 0; x < o.Width; x++ {
+				if insidePolygon(x, y, points) {
+					g.put(x, y, fillRune(s.Variant, x, y, si), seriesColor(si))
+				}
+			}
+		}
 		for i := range points {
 			next := points[(i+1)%n]
-			g.line(points[i][0], points[i][1], next[0], next[1], dither(i, si, si), seriesColor(si))
+			g.line(points[i][0], points[i][1], next[0], next[1], '•', seriesColor(si))
 			g.put(points[i][0], points[i][1], '●', seriesColor(si))
 		}
 	}
 	return g.lines(o.Color)
+}
+
+func insidePolygon(x, y int, points [][2]int) bool {
+	inside := false
+	for i, j := 0, len(points)-1; i < len(points); j, i = i, i+1 {
+		xi, yi := points[i][0], points[i][1]
+		xj, yj := points[j][0], points[j][1]
+		crosses := (yi > y) != (yj > y) && x < (xj-xi)*(y-yi)/(yj-yi)+xi
+		if crosses {
+			inside = !inside
+		}
+	}
+	return inside
 }
 
 func pointX(i, n, w int) int {
@@ -333,7 +490,7 @@ const (
 	selectionColor = 226
 )
 
-func seriesColor(i int) int { return []int{81, 213, 42, 208, 141}[i%5] }
+func seriesColor(i int) int { return []int{39, 99, 46, 214, 141}[i%5] }
 func paint(s string, c int, on bool) string {
 	if !on {
 		return s
