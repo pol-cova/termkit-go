@@ -46,7 +46,7 @@ func TestRenderSupportsDitherKitStyleStacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"Mon", "desktop", "mobile", "╱"} {
+	for _, expected := range []string{"Mon", "desktop", "mobile", "▒"} {
 		if !strings.Contains(got, expected) {
 			t.Fatalf("stacked chart is missing %q:\n%s", expected, got)
 		}

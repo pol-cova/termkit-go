@@ -21,8 +21,8 @@ chart.Chart{
 ## Fill variants
 
 - `chart.Gradient` is a dense dither fill.
-- `chart.Dotted` gives the blue dot-field treatment.
-- `chart.Hatched` uses a diagonal violet hatch.
+- `chart.Dotted` uses a light terminal dither.
+- `chart.Hatched` uses a denser terminal texture for a second stacked series.
 - `chart.Solid` uses a dense block fill.
 
 ## Stacking

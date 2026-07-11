@@ -27,7 +27,7 @@ func main() {
 		fmt.Println(view)
 		return
 	}
-	if _, err := tea.NewProgram(model{width: 68, height: 15}, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := tea.NewProgram(model{width: 68, height: 15, selected: 2}, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

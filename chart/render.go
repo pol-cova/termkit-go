@@ -72,9 +72,9 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 	for y := 0; y < o.Height; y++ {
 		for x := 0; x < o.Width; x++ {
 			if y == o.Height-1 {
-				grid.put(x, y, '·', mutedColor)
-			} else if y%4 == 0 {
-				grid.put(x, y, '·', mutedColor)
+				grid.put(x, y, '─', mutedColor)
+			} else if y == o.Height/2 {
+				grid.put(x, y, '┈', mutedColor)
 			}
 		}
 	}
@@ -117,7 +117,7 @@ func renderSeries(g grid, c Chart, o Options, maximum float64, fill bool) {
 					g.put(x, y, fillRune(series.Variant, x, y, seriesIndex), seriesColor(seriesIndex))
 				}
 			}
-			g.put(x, topY, '•', seriesColor(seriesIndex))
+			g.put(x, topY, edgeRune(fill), seriesColor(seriesIndex))
 		}
 	}
 }
@@ -150,6 +150,7 @@ func renderBars(g grid, c Chart, o Options, maximum float64) {
 				for y := topY; y < baseY; y++ {
 					g.put(px, y, fillRune(s.Variant, px, y, si), seriesColor(si))
 				}
+				g.put(px, topY, '▀', seriesColor(si))
 			}
 			if stacked {
 				rawBase += s.Values[point]
@@ -216,12 +217,19 @@ func fillRune(variant Variant, x, y, series int) rune {
 	case Solid:
 		return '█'
 	case Hatched:
-		return '╱'
+		return '▒'
 	case Dotted:
-		return '·'
+		return '░'
 	default:
-		return []rune{'░', '▒', '▓', '█'}[(x+y+series)%4]
+		return []rune{'░', '░', '▒', '▓'}[(x+y+series)%4]
 	}
+}
+
+func edgeRune(filled bool) rune {
+	if filled {
+		return '▀'
+	}
+	return '•'
 }
 
 func xAxis(c Chart, o Options) string {
