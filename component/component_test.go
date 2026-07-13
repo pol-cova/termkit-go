@@ -50,3 +50,12 @@ func TestTableAndPanelRespectWidth(t *testing.T) {
 		t.Fatal("panel omitted title")
 	}
 }
+
+func TestSparklineAndBreadcrumb(t *testing.T) {
+	if got := Sparkline([]float64{1, 4, 2, 8}, 4, Accent); len([]rune(got)) == 0 {
+		t.Fatal("sparkline is empty")
+	}
+	if got := Breadcrumb([]string{"home", "reports"}, 1); !strings.Contains(got, "reports") {
+		t.Fatal("breadcrumb omitted active item")
+	}
+}

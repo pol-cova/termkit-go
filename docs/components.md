@@ -34,7 +34,7 @@ fmt.Println(component.Panel("Command palette", input.View(true, component.Accent
 fmt.Println(menu.View(32, component.Accent))
 ```
 
-`Tabs`, `Table`, `Panel`, and `KeyHint` cover common layout and command-bar
+`Tabs`, `Table`, `Sparkline`, `Breadcrumb`, `Panel`, and `KeyHint` cover common layout and command-bar
 patterns. They are intentionally string-returning so the same components can
 be used with Bubble Tea, SSH sessions, or a plain CLI.
 

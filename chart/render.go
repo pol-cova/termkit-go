@@ -42,6 +42,9 @@ func Render(chart Chart, options Options) (string, error) {
 	if chart.Kind == Area || chart.Kind == Line || chart.Kind == Bar {
 		b.WriteString("\n" + xAxis(chart, options))
 	}
+	if chart.Kind == Radar && len(chart.Labels) > 0 {
+		b.WriteString("\n" + radarLabels(chart))
+	}
 	b.WriteString("\n" + legend(chart, options))
 	b.WriteString("\n" + readout(chart, options))
 	return b.String(), nil
@@ -85,7 +88,7 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 	}
 	sx := pointX(o.Selected, c.pointCount(), o.Width)
 	for y := 0; y < o.Height; y++ {
-		if grid.cells[y][sx].r == ' ' || grid.cells[y][sx].r == '·' {
+		if y < o.Height-1 {
 			grid.put(sx, y, '┊', selectionColor)
 		}
 	}
@@ -117,7 +120,11 @@ func renderSeries(g grid, c Chart, o Options, maximum float64, fill bool) {
 					g.put(x, y, fillRune(series.Variant, x, y, seriesIndex), seriesColor(seriesIndex))
 				}
 			}
-			g.put(x, topY, edgeRune(fill), seriesColor(seriesIndex))
+			edge := edgeRune(false)
+			if fill {
+				edge = '▄'
+			}
+			g.put(x, topY, edge, seriesColor(seriesIndex))
 		}
 	}
 }
@@ -260,12 +267,12 @@ func renderPie(c Chart, o Options) []string {
 		total = 1
 	}
 	cx, cy := float64(o.Width-1)/2, float64(o.Height-1)/2
-	rx, ry := float64(o.Width)/2.5, float64(o.Height)/2.1
+	rx, ry := float64(o.Width-2)/2.15, float64(o.Height-1)/2
 	for y := 0; y < o.Height; y++ {
 		for x := 0; x < o.Width; x++ {
-			dx, dy := (float64(x)-cx)/rx, (float64(y)-cy)/ry
+			dx, dy := (float64(x)-cx)/maxFloat(rx, 1), (float64(y)-cy)/maxFloat(ry, 1)
 			distance := dx*dx + dy*dy
-			if distance > 1 || distance < .20 {
+			if distance > 1 {
 				continue
 			}
 			angle := math.Atan2(dy, dx) + math.Pi
@@ -292,17 +299,18 @@ func renderRadar(c Chart, o Options) []string {
 	g := newGrid(o.Width, o.Height)
 	n := c.pointCount()
 	cx, cy := o.Width/2, o.Height/2
-	radius := float64(min(o.Width, o.Height)) / 2.3
+	rx := float64(max(2, o.Width-2)) / 2
+	ry := float64(max(2, o.Height-2)) / 2
 	maxValue := maxSeries(c.Series)
 	if maxValue == 0 {
 		maxValue = 1
 	}
 	for ring := 1; ring <= 3; ring++ {
-		r := radius * float64(ring) / 3
+		scale := float64(ring) / 3
 		points := make([][2]int, n)
 		for i := range points {
 			a := angle(i, n)
-			points[i] = [2]int{cx + int(math.Round(math.Cos(a)*r)), cy + int(math.Round(math.Sin(a)*r*.55))}
+			points[i] = radarPoint(cx, cy, rx*scale, ry*scale, a)
 		}
 		for i, point := range points {
 			next := points[(i+1)%n]
@@ -311,15 +319,15 @@ func renderRadar(c Chart, o Options) []string {
 	}
 	for i := 0; i < n; i++ {
 		a := angle(i, n)
-		x, y := cx+int(math.Round(math.Cos(a)*radius)), cy+int(math.Round(math.Sin(a)*radius*.55))
+		x, y := radarPoint(cx, cy, rx, ry, a)[0], radarPoint(cx, cy, rx, ry, a)[1]
 		g.line(cx, cy, x, y, '·', mutedColor)
 	}
 	for si, s := range c.Series {
 		points := make([][2]int, n)
 		for i, v := range s.Values {
 			a := angle(i, n)
-			r := radius * v / maxValue
-			points[i] = [2]int{cx + int(math.Round(math.Cos(a)*r)), cy + int(math.Round(math.Sin(a)*r*.55))}
+			r := maxFloat(v, 0) / maxValue
+			points[i] = radarPoint(cx, cy, rx*r, ry*r, a)
 		}
 		for y := 0; y < o.Height; y++ {
 			for x := 0; x < o.Width; x++ {
@@ -392,11 +400,55 @@ func dither(x, y, series int) rune {
 }
 
 func legend(c Chart, o Options) string {
+	if c.Kind == Pie {
+		return pieLegend(c, o)
+	}
 	p := make([]string, len(c.Series))
 	for i, s := range c.Series {
 		p[i] = paint("●", seriesColor(i), o.Color) + " " + s.Name
 	}
 	return strings.Join(p, "  ")
+}
+
+func pieLegend(c Chart, o Options) string {
+	s := c.Series[o.ActiveSeries]
+	total := 0.0
+	for _, value := range s.Values {
+		total += maxFloat(value, 0)
+	}
+	if total == 0 {
+		total = 1
+	}
+	parts := make([]string, len(s.Values))
+	for i, value := range s.Values {
+		label := fmt.Sprintf("%s %.0f%%", labelAt(c, i), maxFloat(value, 0)/total*100)
+		if i == o.Selected {
+			label = "◆ " + label
+		} else {
+			label = "● " + label
+		}
+		parts[i] = paint(label, seriesColor(i), o.Color)
+	}
+	return strings.Join(parts, "  ")
+}
+
+func radarLabels(c Chart) string {
+	labels := make([]string, 0, len(c.Labels))
+	for i, label := range c.Labels {
+		labels = append(labels, fmt.Sprintf("%d %s", i+1, label))
+	}
+	return strings.Join(labels, "  ")
+}
+
+func labelAt(c Chart, index int) string {
+	if index >= 0 && index < len(c.Labels) && c.Labels[index] != "" {
+		return c.Labels[index]
+	}
+	return fmt.Sprintf("point %d", index+1)
+}
+
+func radarPoint(cx, cy int, rx, ry, a float64) [2]int {
+	return [2]int{cx + int(math.Round(math.Cos(a)*rx)), cy + int(math.Round(math.Sin(a)*ry))}
 }
 func readout(c Chart, o Options) string {
 	label := fmt.Sprintf("point %d", o.Selected+1)

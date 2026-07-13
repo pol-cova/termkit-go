@@ -23,7 +23,7 @@ go get github.com/pol-cova/termkit-go
 | --- | --- | --- |
 | `chart` | Area, line, bar, pie, radar; stacked and percent modes; interactive selection. | [docs](docs/charts.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) |
 | `animate` | Tween, spring, pulse, repeat, and easing helpers. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/animate) |
-| `component` | Panels, inputs, selects, tabs, tables, progress, gauges, spinners, badges, cards, dividers, and status bars. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
+| `component` | Panels, inputs, selects, tabs, tables, sparklines, breadcrumbs, progress, gauges, spinners, badges, cards, dividers, and status bars. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
 | `sound` | Optional interaction cues through the terminal bell or your own player. | [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/sound) |
 
 Each package returns values or strings. It does not own your event loop, terminal, or rendering framework.

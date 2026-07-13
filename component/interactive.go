@@ -303,3 +303,55 @@ func maxInt(a, b int) int {
 func KeyHint(key, label string) string {
 	return fmt.Sprintf("%s %s", paint("["+key+"]", Accent), paint(label, Muted))
 }
+
+// Sparkline renders a compact trend line using one terminal cell per sample.
+// Values are sampled evenly when width is smaller than the input length.
+func Sparkline(values []float64, width int, tone Tone) string {
+	if width < 1 || len(values) == 0 {
+		return ""
+	}
+	if width > len(values) {
+		width = len(values)
+	}
+	minimum, maximum := values[0], values[0]
+	for _, value := range values[1:] {
+		if value < minimum {
+			minimum = value
+		}
+		if value > maximum {
+			maximum = value
+		}
+	}
+	levels := []rune("▁▂▃▄▅▆▇█")
+	result := make([]rune, width)
+	for i := range result {
+		index := i * (len(values) - 1) / maxInt(width-1, 1)
+		value := values[index]
+		level := 0
+		if maximum > minimum {
+			level = int((value - minimum) / (maximum - minimum) * float64(len(levels)-1))
+		}
+		result[i] = levels[maxInt(0, minInt(level, len(levels)-1))]
+	}
+	return paint(string(result), tone)
+}
+
+// Breadcrumb renders a compact navigation path, highlighting the active item.
+func Breadcrumb(items []string, active int) string {
+	parts := make([]string, len(items))
+	for i, item := range items {
+		tone := Muted
+		if i == active {
+			tone = Accent
+		}
+		parts[i] = paint(item, tone)
+	}
+	return strings.Join(parts, paint(" › ", Muted))
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

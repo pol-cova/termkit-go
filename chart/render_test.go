@@ -52,3 +52,53 @@ func TestRenderSupportsDitherKitStyleStacks(t *testing.T) {
 		}
 	}
 }
+
+func TestPieIncludesSliceDetails(t *testing.T) {
+	c := example(Pie)
+	got, err := Render(c, Options{Width: 40, Height: 10, Selected: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{"Mon 6%", "Tue 23%", "◆ Tue"} {
+		if !strings.Contains(got, expected) {
+			t.Fatalf("pie is missing %q:\n%s", expected, got)
+		}
+	}
+}
+
+func TestRadarUsesAvailableWidth(t *testing.T) {
+	got, err := Render(example(Radar), Options{Width: 40, Height: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(got, "\n")
+	maxWidth := 0
+	for _, line := range lines[1:11] {
+		if width := len([]rune(strings.TrimRight(line, " "))); width > maxWidth {
+			maxWidth = width
+		}
+	}
+	if maxWidth < 25 {
+		t.Fatalf("radar did not use terminal width: %d\n%s", maxWidth, got)
+	}
+	if !strings.Contains(got, "1 Mon") {
+		t.Fatalf("radar omitted axis labels:\n%s", got)
+	}
+}
+
+func TestAreaKeepsEdgeAndSelectionVisible(t *testing.T) {
+	got, err := Render(example(Area), Options{Width: 40, Height: 10, Selected: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "▄") || !strings.Contains(got, "┊") {
+		t.Fatalf("area lost its edge or selection marker:\n%s", got)
+	}
+}
+
+func TestRenderRejectsUnevenSeries(t *testing.T) {
+	c := Chart{Kind: Line, Series: []Series{{Name: "a", Values: []float64{1, 2}}, {Name: "b", Values: []float64{1}}}}
+	if _, err := Render(c, Options{}); err == nil {
+		t.Fatal("expected uneven series validation error")
+	}
+}

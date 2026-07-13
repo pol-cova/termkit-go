@@ -32,3 +32,11 @@ chart.Chart{
 - `chart.Percent` normalizes each cartesian point to 100%.
 
 `Options.Selected` controls the scrub column and readout. `Options.ActiveSeries` controls the selected series in pie charts and the readout. Set `Options.Color` to `false` for plain text snapshots.
+
+## Terminal-friendly geometry
+
+- **Area** charts use a stronger lower-half block edge (`▄`) and keep the scrub column visible over filled regions, so the trend remains readable in monochrome terminals.
+- **Pie** charts use the full plotting ellipse and include a slice legend with the label, percentage, and selected-slice marker. Values below zero are treated as zero.
+- **Radar** charts size their horizontal and vertical radii independently, using the available terminal width instead of collapsing to the shorter height. Axis labels are listed beneath the plot.
+
+For stable layouts, start with `Width: 48` and `Height: 12`, then reduce those values after checking the smallest terminal you support. All series must contain the same number of values; this prevents a resize or selection event from producing a partial chart or panic.

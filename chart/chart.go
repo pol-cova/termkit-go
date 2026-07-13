@@ -64,6 +64,11 @@ func (c Chart) validate() error {
 			return fmt.Errorf("termkit/chart: series %q has %d values for %d labels", s.Name, len(s.Values), len(c.Labels))
 		}
 	}
+	for i := 1; i < len(c.Series); i++ {
+		if len(c.Series[i].Values) != len(c.Series[0].Values) {
+			return fmt.Errorf("termkit/chart: series %q has %d values; expected %d", c.Series[i].Name, len(c.Series[i].Values), len(c.Series[0].Values))
+		}
+	}
 	if c.StackType != "" && c.StackType != Default && c.StackType != Stacked && c.StackType != Percent {
 		return fmt.Errorf("termkit/chart: unsupported stack type %q", c.StackType)
 	}
