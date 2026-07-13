@@ -4,7 +4,10 @@
 [![CI](https://github.com/pol-cova/termkit-go/actions/workflows/ci.yml/badge.svg)](https://github.com/pol-cova/termkit-go/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/pol-cova/termkit-go)](LICENSE)
 
-![termkit-go demo](docs/demo.gif)
+[![termkit-go interactive demo](docs/demo.gif)](https://github.com/pol-cova/termkit-go/blob/main/docs/demo.gif)
+
+The demo is a live Bubble Tea dashboard: use `1`–`5` to switch chart types,
+`←`/`→` (or `h`/`l`) to move the selection, `tab` to switch series, and `q` to quit.
 
 Terminal charts, motion, and UI components for Go CLIs and TUIs. The chart palette and texture are inspired by [Dither Kit](https://www.tripwire.sh/dither-kit).
 
@@ -20,7 +23,8 @@ go get github.com/pol-cova/termkit-go
 | --- | --- | --- |
 | `chart` | Area, line, bar, pie, radar; stacked and percent modes; interactive selection. | [docs](docs/charts.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) |
 | `animate` | Tween, spring, pulse, repeat, and easing helpers. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/animate) |
-| `component` | Progress, gauges, spinners, badges, cards, dividers, and status bars. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
+| `component` | Panels, inputs, selects, tabs, tables, progress, gauges, spinners, badges, cards, dividers, and status bars. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
+| `sound` | Optional interaction cues through the terminal bell or your own player. | [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/sound) |
 
 Each package returns values or strings. It does not own your event loop, terminal, or rendering framework.
 
@@ -81,13 +85,39 @@ fmt.Println(component.Progress("Deploy", progress, 20, component.Accent))
 fmt.Println(component.SpinnerFrame(frame, "Connecting", component.Warning))
 ```
 
+### Interactive building blocks
+
+The component package stays event-loop neutral, but includes the primitives needed to build a small OpenTUI-style app:
+
+```go
+input := component.Input{Placeholder: "Search…", MaxLength: 80}
+input.HandleKey("hello")
+menu := component.Select{Options: []component.Option{{Label: "Dashboard"}, {Label: "Settings"}}, Height: 4}
+menu.HandleKey("down")
+fmt.Println(component.Panel("Command palette", input.View(true, component.Accent), 36, component.Accent))
+fmt.Println(menu.View(32, component.Accent))
+```
+
+Sound is opt-in and has no platform dependency. `sound.Bell` emits the terminal's native cue; applications can implement `sound.Player` to synthesize or route cues elsewhere.
+
+```go
+import (
+    "os"
+
+    "github.com/pol-cova/termkit-go/sound"
+)
+
+player := sound.Bell{Out: os.Stdout}
+player.Play(sound.Success)
+```
+
 ## Demo
 
 ```bash
 go run ./cmd/demo
 ```
 
-Use `1`–`5` to change chart type, `←`/`→` to scrub, and `tab` to switch series.
+Use `1`–`5` to change chart type, `←`/`→` (or `h`/`l`) to scrub, `tab` to switch series, and `q` to quit.
 
 ## Requirements
 
@@ -95,8 +125,10 @@ Go 1.24 or newer. The library itself has no required UI framework; the demo uses
 
 ## Docs
 
-- [Charts and visual variants](docs/charts.md)
-- [Motion and components](docs/components.md)
+- [Charts and visual variants](docs/charts.md) — chart types, stacking, selection, and rendering options
+- [Motion and components](docs/components.md) — animation, panels, inputs, selects, tables, and interaction cues
+- [Interactive demo source](cmd/demo/main.go) · [VHS recording script](demo.tape) · [GIF preview](docs/demo.gif)
+- [Go API: chart](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) · [component](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) · [sound](https://pkg.go.dev/github.com/pol-cova/termkit-go/sound)
 - [Contributing](CONTRIBUTING.md)
 
 ## Development

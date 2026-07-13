@@ -26,3 +26,27 @@ func TestCardAndDivider(t *testing.T) {
 		t.Fatal("divider is empty")
 	}
 }
+
+func TestInputEditingAndSelection(t *testing.T) {
+	input := Input{Placeholder: "type here"}
+	input.HandleKey("go")
+	input.HandleKey("left")
+	input.HandleKey("backspace")
+	if got := string(input.Value); got != "o" {
+		t.Fatalf("input = %q", got)
+	}
+	selectable := Select{Options: []Option{{Label: "one"}, {Label: "two"}}, Height: 1}
+	selectable.HandleKey("down")
+	if !selectable.HandleKey("enter") || selectable.Selected != 1 {
+		t.Fatal("selection was not confirmed")
+	}
+}
+
+func TestTableAndPanelRespectWidth(t *testing.T) {
+	if got := Table([]string{"Name", "State"}, [][]string{{"worker", "running"}}, 20); len(strings.Split(got, "\n")) != 5 {
+		t.Fatal("table shape changed")
+	}
+	if got := Panel("Logs", "a very long line", 16, Accent); !strings.Contains(got, "Logs") {
+		t.Fatal("panel omitted title")
+	}
+}
