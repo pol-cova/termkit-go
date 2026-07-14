@@ -33,6 +33,12 @@ chart.Chart{
 
 `Options.Selected` controls the scrub column and readout. `Options.ActiveSeries` controls the selected series in pie charts and the readout. Set `Options.Color` to `false` for plain text snapshots.
 
+For the dither-kit interaction model, set `Options.Interactive` and provide
+`Options.HoveredSeries` while handling pointer/keyboard events in the host
+TUI. The active series is retained at full colour and other series are dimmed,
+matching the reference legend spotlight. `Series.Color` accepts `blue`,
+`purple`, `green`, `pink`, `orange`, `red`, or `grey`.
+
 ## Terminal-friendly geometry
 
 - **Area** charts use a stronger lower-half block edge (`▄`) and keep the scrub column visible over filled regions, so the trend remains readable in monochrome terminals.

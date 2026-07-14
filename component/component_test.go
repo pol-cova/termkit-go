@@ -59,3 +59,25 @@ func TestSparklineAndBreadcrumb(t *testing.T) {
 		t.Fatal("breadcrumb omitted active item")
 	}
 }
+
+func TestDitherAvatarIsSeeded(t *testing.T) {
+	a := DitherAvatar("dan", 8, DitherPurple, BloomAura)
+	if a == "" || a != DitherAvatar("dan", 8, DitherPurple, BloomAura) {
+		t.Fatal("avatar should be deterministic")
+	}
+	if a == DitherAvatar("ada", 8, DitherPurple, BloomAura) {
+		t.Fatal("different names should produce different avatars")
+	}
+}
+
+func TestDitherStandaloneComponents(t *testing.T) {
+	if DitherButton("save", DitherBlue, DitherGradientVariant, BloomLow, false, false, false) == "" {
+		t.Fatal("button should render")
+	}
+	if got := DitherGradient(12, 3, DitherPurple, DitherBlue, "up", BloomLow); len(strings.Split(got, "\n")) != 3 {
+		t.Fatalf("gradient rows = %d, want 3", len(strings.Split(got, "\n")))
+	}
+	if got := DitherSparkline([]float64{3, 7, 5, 9, 8, 12}, 16, 5, DitherGreen, DitherGradientVariant, BloomAura); len(strings.Split(got, "\n")) != 5 {
+		t.Fatalf("sparkline rows = %d, want 5", len(strings.Split(got, "\n")))
+	}
+}

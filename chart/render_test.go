@@ -102,3 +102,26 @@ func TestRenderRejectsUnevenSeries(t *testing.T) {
 		t.Fatal("expected uneven series validation error")
 	}
 }
+
+func TestInteractiveLegendDimsInactiveSeries(t *testing.T) {
+	c := example(Area)
+	c.Series[0].Color = "blue"
+	c.Series[1].Color = "purple"
+	got, err := Render(c, Options{Width: 48, Height: 10, Interactive: true, HoveredSeries: 0, Color: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "38;5;240m") || !strings.Contains(got, "38;5;33m") {
+		t.Fatalf("interactive rendering did not dim/retain series colours:\n%s", got)
+	}
+}
+
+func TestLineConnectsSamples(t *testing.T) {
+	got, err := Render(example(Line), Options{Width: 40, Height: 10, Color: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "╌") && !strings.Contains(got, "•") {
+		t.Fatalf("line renderer omitted connected stroke:\n%s", got)
+	}
+}

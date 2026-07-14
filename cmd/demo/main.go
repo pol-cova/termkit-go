@@ -9,6 +9,7 @@ import (
 	"github.com/pol-cova/termkit-go/animate"
 	"github.com/pol-cova/termkit-go/chart"
 	"github.com/pol-cova/termkit-go/component"
+	"github.com/pol-cova/termkit-go/pixel"
 )
 
 type model struct {
@@ -22,6 +23,14 @@ type frame struct{}
 var kinds = []chart.Kind{chart.Area, chart.Line, chart.Bar, chart.Pie, chart.Radar}
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--dither-kit" {
+		showDitherKit()
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--pixel" {
+		showPixelKit()
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "--static" {
 		view, _ := chart.Render(sample(kinds[0]), chart.Options{Width: 58, Height: 13, Selected: 2, Color: true})
 		fmt.Println(view)
@@ -31,6 +40,38 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func showPixelKit() {
+	for _, kind := range kinds {
+		canvas, err := chart.RenderPixel(sample(kind), chart.PixelOptions{Width: 96, Height: 24, Background: pixel.RGBA{R: 39, G: 40, B: 53, A: 255}})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		fmt.Printf("\033[1mtermkit-go / %s — ANSI half-block raster\033[0m\n%s\n\n", kind, canvas.ANSI())
+	}
+}
+
+func showDitherKit() {
+	for _, kind := range kinds {
+		c := sample(kind)
+		c.Title = "termkit-go / " + string(kind)
+		view, err := chart.Render(c, chart.Options{Width: 48, Height: 9, Selected: 2, ActiveSeries: 0, Color: false})
+		if err == nil {
+			fmt.Println(view)
+			fmt.Println()
+		}
+	}
+	fmt.Println(component.DitherAvatar("dan", 12, component.DitherPurple, component.BloomAura))
+	fmt.Println()
+	fmt.Println(component.DitherButton("save changes", component.DitherBlue, component.DitherGradientVariant, component.BloomAura, false, false, false))
+	fmt.Println(component.DitherButton("deploy →", component.DitherPurple, component.DitherHatchedVariant, component.BloomAura, true, false, false))
+	fmt.Println(component.DitherButton("disabled", component.DitherGrey, component.DitherSolidVariant, component.BloomAura, false, false, true))
+	fmt.Println()
+	fmt.Println(component.DitherGradient(48, 5, component.DitherPurple, "", "up", component.BloomLow))
+	fmt.Println()
+	fmt.Println(component.DitherSparkline([]float64{3, 7, 5, 9, 8, 12}, 48, 6, component.DitherGreen, component.DitherGradientVariant, component.BloomAura))
 }
 
 func (m model) Init() tea.Cmd { return nextFrame() }

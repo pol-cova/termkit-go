@@ -1,0 +1,115 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Dither Kit ↔ termkit-go evidence</title>
+<style>
+  :root { color-scheme: dark; background:#09090b; color:#d4d4d8; font:13px ui-monospace,SFMono-Regular,Menlo,monospace }
+  body { max-width:1400px; margin:0 auto; padding:32px; background:#09090b }
+  h1 { font-size:24px; color:#fafafa } h2 { font-size:16px; color:#fafafa; margin:32px 0 8px }
+  .note { color:#a1a1aa; line-height:1.6; max-width:900px }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start }
+  .label { color:#71717a; font-size:11px; margin:0 0 6px }
+  .frame { border:1px solid #27272a; border-radius:8px; overflow:hidden; background:#0b0b0c; min-height:260px }
+  .frame img { display:block; width:100%; height:300px; object-fit:cover; object-position:top center }
+  .frame img.cartesian { object-position:center 42% }
+  .frame img.polar { object-position:center bottom }
+  pre { margin:0; padding:16px; min-height:228px; overflow:hidden; color:#d4d4d8; line-height:1.22; font-size:12px; background:#0b0b0c }
+  .code { color:#a78bfa; font-size:11px; margin-top:7px }
+  .diff { color:#fbbf24; line-height:1.5; margin:8px 0 0 }
+</style>
+<h1>Dither Kit ↔ termkit-go visual evidence</h1>
+<p class="note">Original captures are from <a href="https://www.tripwire.sh/dither-kit">tripwire.sh/dither-kit</a>. Terminal captures are rendered by the current Go implementation. The comparison is intentionally honest: the terminal preserves geometry, palette, dither order, and interaction concepts, but cannot reproduce browser pixels or CSS effects exactly.</p>
+
+<h2>Area chart</h2>
+<div class="pair"><div><div class="label">ORIGINAL · browser canvas</div><div class="frame"><img src="reference-hero.png"></div></div><div><div class="label">CURRENT · Go terminal output</div><div class="frame"><pre>termkit-go / area
+125                 ┊             ▄▄▄▄▄▄▄▄▄▄▄▄
+109                 ┊      ▄▄▄▄▄▄▄ ▒▒  ▒▒  ▒▒
+ 94                 ┊▄▄▄▄▄▄▒  ▒▒  ▒▒  ▒▒  ▒▓
+ 78             ▄▄▄▄┊▒▒  ▒▒  ▓▓  ▓▓  ▓▓  ▓▓▄▄▄
+ 62       ▄▄▄▄▄▄▒▒  ┊▒  ▓▓▄▄▄▄▄▄▄▄▄▄▓▓▄▄▄▄▄···
+ 47 ▄▄▄▄▄▄ ▒▄▄▄▒▓  ▓┊  ▄▄▄··········▄▄········
+ 31   ▄▄▄▄▄▄···▄▄▄▄▄┊▄▄·······················
+ 16 ▄▄··············┊·························
+  0 ──────────────────────────────────────────
+      Mon    Tue     Wed      Thu     Fri     Sa
+■ desktop  ■ mobile
+◆ Wed  desktop: 29.00  mobile: 56.00</pre></div></div></div>
+<div class="code">Go: <a href="../chart/render.go#L110">chart/render.go</a> · tests: <a href="../chart/render_test.go#L89">chart/render_test.go</a></div>
+<p class="diff">Difference: the browser uses a high-resolution canvas with continuous curves, glow, animation, and pointer tooltip; the terminal uses discrete cells and a static selected column.</p>
+
+<h2>Bar and line charts</h2>
+<div class="pair"><div><div class="label">ORIGINAL · bar + line reference capture</div><div class="frame"><img class="cartesian" src="reference-cartesian.png"></div></div><div><div class="label">CURRENT · Go terminal output</div><div class="frame"><pre>termkit-go / bar
+125                 ┊               ▀▀▀     ▀▀
+109                 ┊       ▀▀▀     ▒       ▒
+ 94                 ┊         ▒       ▒
+ 78                ▀┊▀       ▓▓      ▓▓     ▀▀
+ 62        ▀▀▀      ┊▒      ▀▀▀     ▓▓      ··
+ 47 ▀▀     ▀▀▀     ▓┊       ···     ▀▀▀     ··
+ 31        ···     ▀┊▀      ···     ···     ··
+ 16 ▀▀     ···     ·┊·      ···     ···     ··
+  0 ──────────────────────────────────────────
+■ desktop  ■ mobile
+
+termkit-go / line
+ 76                 ┊                ╌      ••
+ 66                 ┊       •••••  ╌╌ ╌╌╌•••
+ 57                 ┊╌╌   ••    ╌╌╌••••• ╌╌╌
+ 48               ╌╌┊  ╌╌╌╌   ╌╌            ╌╌
+ 38       ••••••╌╌  ┊ ••   ╌╌╌
+ 28 ╌╌••••    ╌╌  ••┊•
+ 19 ••╌╌╌╌╌╌╌╌      ┊
+  0 ──────────────────────────────────────────</pre></div></div></div>
+<div class="code">Go: <a href="../chart/render.go#L184">chart/render.go</a> · line fill: <a href="../chart/render.go#L142">chart/render.go</a> · API: <a href="../chart/chart.go#L37">chart/chart.go</a></div>
+<p class="diff">Difference: bar geometry and line connectivity are represented, but browser antialiasing, canvas bloom, dashed stroke spacing, and responsive dimensions are not identical.</p>
+
+<h2>Pie and radar charts</h2>
+<div class="pair"><div><div class="label">ORIGINAL · pie + radar reference capture</div><div class="frame"><img class="polar" src="reference-polar.png"></div></div><div><div class="label">CURRENT · Go terminal output</div><div class="frame"><pre>termkit-go / pie
+
+          ··········▓▓▓▓▓▓▓▓▓▓········
+     ················▓▓▓▓▓▓▓···············
+   ····················▓▓▓···················
+   ··········································
+     ······································
+● Mon 6%  ● Tue 15%  ◆ Wed 10%  ● Thu 24%
+
+termkit-go / radar
+                   ··········
+         ··········     ·    ··········
+    ●•••••••••    ·············        ······
+    · ••···•●••••••••••••••••••••••●···     ·
+    ·   •••▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒••●••••••  ·      ·
+    ·  ••▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒•••••••●    ·
+          ·········· •••●••   ··········</pre></div></div></div>
+<div class="code">Go: <a href="../chart/render.go#L372">chart/render.go</a> · radar: <a href="../chart/render.go#L412">chart/render.go</a> · tests: <a href="../chart/render_test.go#L56">chart/render_test.go</a></div>
+<p class="diff">Difference: the terminal uses Unicode geometry and an elliptical pie; the browser uses per-pixel polar masks, smooth labels, hover expansion, and a true donut inner radius.</p>
+
+<h2>Avatar and button</h2>
+<div class="pair"><div><div class="label">ORIGINAL · standalone reference capture</div><div class="frame"><img src="reference-standalone.png"></div></div><div><div class="label">CURRENT · Go terminal output</div><div class="frame"><pre>▓▓ ▓▓▓▓▓▓  ▓
+▓▓ ▓▓▓▓▓▓  ▓
+            
+  ▓  ▓▓▓ ▓▓  
+  ▓  ▓▓▓ ▓▓  
+▓▓         ▓
+▓▓▓  ▓▓▓ ▓▓▓
+▓▓▓  ▓▓▓ ▓▓▓
+  ▓      ▓▓  
+▓▓ ▓▓   ▓  ▓
+▓▓ ▓▓   ▓  ▓
+░░         ░
+
+[████ save changes ████]
+[▒▒▒ deploy → ▒▒▒]
+[███ disabled ███]</pre></div></div></div>
+<div class="code">Go: <a href="../component/ditherkit.go#L232">component/ditherkit.go</a> · button: <a href="../component/ditherkit.go#L52">component/ditherkit.go</a></div>
+<p class="diff">Difference: the seeded avatar pattern and button states are present, but a terminal cannot provide the browser’s 4×4 CSS/canvas pixel scale, native button focus ring, pointer transitions, or blur bloom.</p>
+
+<h2>Gradient wash and sparkline</h2>
+<div class="pair"><div><div class="label">ORIGINAL · gradient reference capture</div><div class="frame"><img src="reference-gradient.png"></div></div><div><div class="label">CURRENT · Go terminal output</div><div class="frame"><pre>  ░   ░   ░   ░   ░   ░   ░   ░   ░
+░  ░  ░  ░  ░  ░  ░  ░  ░  ░  ░
+░ ░ ░ ░ ░ ░ ░ ░ ░ ░ ░ ░ ░ ░ ░ ░
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+
+                         ╱•✦••••••••✦••▒░█▓▒░
+      ╱•••••••✦•••  ╱••••█▓▒░█▓▒░█▓▒░█▓▒░█▓▒
+•✦••••█▓▒░█▓▒░█▓▒░╲•▒░█▓▒░█▓▒░█▓▒░█▓▒░█▓▒░█▓</pre></div></div></div>
+<div class="code">Go: <a href="../component/ditherkit.go#L69">component/ditherkit.go</a> · sparkline: <a href="../component/ditherkit.go#L124">component/ditherkit.go</a></div>
+<p class="diff">Difference: direction and ordered fade are preserved, but terminal cells cannot provide the reference’s alpha compositing, per-pixel opacity, CSS container fill, or bloom filter.</p>

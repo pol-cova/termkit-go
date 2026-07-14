@@ -38,6 +38,27 @@ fmt.Println(menu.View(32, component.Accent))
 patterns. They are intentionally string-returning so the same components can
 be used with Bubble Tea, SSH sessions, or a plain CLI.
 
+## Dither-kit components
+
+The `component` package also contains terminal equivalents for dither-kit’s
+standalone pieces. They preserve the same seven-colour palette, four texture
+variants, seeded avatar behaviour, and bloom states. A terminal cannot blur a
+cell like a browser canvas, so bloom is represented by brighter/denser glyphs.
+
+```go
+fmt.Println(component.DitherAvatar("dan", 12, component.DitherPurple, component.BloomAura))
+fmt.Println(component.DitherButton("deploy →", component.DitherBlue, component.DitherGradientVariant, component.BloomLow, false, false, false))
+fmt.Println(component.DitherGradient(32, 4, component.DitherPurple, component.DitherBlue, "up", component.BloomLow))
+fmt.Println(component.DitherSparkline([]float64{3, 7, 5, 9, 8, 12}, 32, 5, component.DitherGreen, component.DitherGradientVariant, component.BloomAura))
+```
+
+The chart renderer maps dither-kit’s `AreaChart`, `BarChart`, `LineChart`,
+`PieChart`, and `RadarChart` to `chart.Area`, `chart.Bar`, `chart.Line`,
+`chart.Pie`, and `chart.Radar`. `Options.Selected` is the keyboard/mouse
+scrub marker; `ActiveSeries` is the selected legend item. `Gradient`,
+`Dotted`, `Hatched`, and `Solid` use deterministic cell textures, so two
+renders of the same data do not shimmer.
+
 ## Interaction cues
 
 The `sound` package provides a tiny `Player` interface and a terminal-native

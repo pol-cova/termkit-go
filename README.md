@@ -9,6 +9,9 @@
 The demo is a live Bubble Tea dashboard: use `1`–`5` to switch chart types,
 `←`/`→` (or `h`/`l`) to move the selection, `tab` to switch series, and `q` to quit.
 
+Run `go run ./cmd/demo --dither-kit` for a static terminal comparison sheet
+covering the avatar, button states, gradient wash, and decorative sparkline.
+
 Terminal charts, motion, and UI components for Go CLIs and TUIs. The chart palette and texture are inspired by [Dither Kit](https://www.tripwire.sh/dither-kit).
 
 ## Install
@@ -23,7 +26,7 @@ go get github.com/pol-cova/termkit-go
 | --- | --- | --- |
 | `chart` | Area, line, bar, pie, radar; stacked and percent modes; interactive selection. | [docs](docs/charts.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) |
 | `animate` | Tween, spring, pulse, repeat, and easing helpers. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/animate) |
-| `component` | Panels, inputs, selects, tabs, tables, sparklines, breadcrumbs, progress, gauges, spinners, badges, cards, dividers, and status bars. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
+| `component` | Panels, inputs, selects, tabs, tables, sparklines, breadcrumbs, progress, gauges, spinners, badges, cards, dividers, status bars, dither-kit buttons, avatars, and gradient washes. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
 | `sound` | Optional interaction cues through the terminal bell or your own player. | [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/sound) |
 
 Each package returns values or strings. It does not own your event loop, terminal, or rendering framework.
@@ -127,6 +130,7 @@ Go 1.24 or newer. The library itself has no required UI framework; the demo uses
 
 - [Charts and visual variants](docs/charts.md) — chart types, stacking, selection, and rendering options
 - [Motion and components](docs/components.md) — animation, panels, inputs, selects, tables, and interaction cues
+- [Dither Kit fidelity map](docs/dither-kit-fidelity.md) — reference component mapping and ported visual constants
 - [Interactive demo source](cmd/demo/main.go) · [VHS recording script](demo.tape) · [GIF preview](docs/demo.gif)
 - [Go API: chart](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) · [component](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) · [sound](https://pkg.go.dev/github.com/pol-cova/termkit-go/sound)
 - [Contributing](CONTRIBUTING.md)

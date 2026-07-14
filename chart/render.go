@@ -12,7 +12,9 @@ type Options struct {
 	Width, Height int
 	Selected      int
 	ActiveSeries  int
+	HoveredSeries int
 	Color         bool
+	Interactive   bool
 }
 
 // Render draws a chart using Unicode cells and ANSI colour when requested.
@@ -22,17 +24,30 @@ func Render(chart Chart, options Options) (string, error) {
 	}
 	options = normalized(options, chart)
 	var plot []string
-	switch chart.Kind {
-	case Area:
-		plot = renderCartesian(chart, options, true, false)
-	case Line:
-		plot = renderCartesian(chart, options, false, false)
-	case Bar:
-		plot = renderCartesian(chart, options, true, true)
-	case Pie:
-		plot = renderPie(chart, options)
-	case Radar:
-		plot = renderRadar(chart, options)
+	cartesianWidth := options.Width
+	if chart.Kind == Area || chart.Kind == Line || chart.Kind == Bar {
+		cartesianWidth = max(12, options.Width-6)
+		plotOptions := options
+		plotOptions.Width = cartesianWidth
+		switch chart.Kind {
+		case Area:
+			plot = renderCartesian(chart, plotOptions, true, false)
+		case Line:
+			plot = renderCartesian(chart, plotOptions, false, false)
+		case Bar:
+			plot = renderCartesian(chart, plotOptions, true, true)
+		}
+		plot = withYAxis(plot, chartMaximum(chart), options.Color)
+	} else {
+		switch chart.Kind {
+		case Area:
+		case Line:
+		case Bar:
+		case Pie:
+			plot = renderPie(chart, options)
+		case Radar:
+			plot = renderRadar(chart, options)
+		}
 	}
 	var b strings.Builder
 	if chart.Title != "" {
@@ -40,7 +55,8 @@ func Render(chart Chart, options Options) (string, error) {
 	}
 	b.WriteString(strings.Join(plot, "\n"))
 	if chart.Kind == Area || chart.Kind == Line || chart.Kind == Bar {
-		b.WriteString("\n" + xAxis(chart, options))
+		axis := xAxis(chart, Options{Width: cartesianWidth})
+		b.WriteString("\n      " + axis)
 	}
 	if chart.Kind == Radar && len(chart.Labels) > 0 {
 		b.WriteString("\n" + radarLabels(chart))
@@ -48,6 +64,22 @@ func Render(chart Chart, options Options) (string, error) {
 	b.WriteString("\n" + legend(chart, options))
 	b.WriteString("\n" + readout(chart, options))
 	return b.String(), nil
+}
+
+func withYAxis(lines []string, maximum float64, color bool) []string {
+	if len(lines) == 0 {
+		return lines
+	}
+	for i, line := range lines {
+		ratio := float64(len(lines)-1-i) / float64(max(1, len(lines)-1))
+		value := maximum * ratio
+		label := fmt.Sprintf("%3.0f ", value)
+		if i == len(lines)-1 {
+			label = "  0 "
+		}
+		lines[i] = paint(label, mutedColor, color) + line
+	}
+	return lines
 }
 
 func normalized(o Options, c Chart) Options {
@@ -66,6 +98,12 @@ func normalized(o Options, c Chart) Options {
 	if o.ActiveSeries < 0 || o.ActiveSeries >= len(c.Series) {
 		o.ActiveSeries = 0
 	}
+	if o.HoveredSeries < -1 || o.HoveredSeries >= len(c.Series) {
+		o.HoveredSeries = -1
+	}
+	if !o.Interactive {
+		o.HoveredSeries = -1
+	}
 	return o
 }
 
@@ -76,8 +114,6 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 		for x := 0; x < o.Width; x++ {
 			if y == o.Height-1 {
 				grid.put(x, y, '─', mutedColor)
-			} else if y == o.Height/2 {
-				grid.put(x, y, '┈', mutedColor)
 			}
 		}
 	}
@@ -85,6 +121,14 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 		renderBars(grid, c, o, maxValue)
 	} else {
 		renderSeries(grid, c, o, maxValue, area)
+	}
+	if c.Bloom != "" && c.Bloom != "off" {
+		for x := 3; x < o.Width-3; x++ {
+			if (x*17+o.Height*11)%89 == 0 {
+				y := plotY(sampledValue(c, 0, x, o.Width), maxValue, o.Height)
+				grid.put(x, y, '✦', seriesColorFor(c.Series[0], 0, false))
+			}
+		}
 	}
 	sx := pointX(o.Selected, c.pointCount(), o.Width)
 	for y := 0; y < o.Height; y++ {
@@ -98,6 +142,7 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 func renderSeries(g grid, c Chart, o Options, maximum float64, fill bool) {
 	stacked := c.StackType == Stacked || c.StackType == Percent
 	for seriesIndex, series := range c.Series {
+		dimmed := o.HoveredSeries >= 0 && o.HoveredSeries != seriesIndex
 		for x := 0; x < o.Width; x++ {
 			value := sampledValue(c, seriesIndex, x, o.Width)
 			base := 0.0
@@ -117,14 +162,21 @@ func renderSeries(g grid, c Chart, o Options, maximum float64, fill bool) {
 			baseY := plotY(base, maximum, o.Height)
 			if fill {
 				for y := topY; y < baseY; y++ {
-					g.put(x, y, fillRune(series.Variant, x, y, seriesIndex), seriesColor(seriesIndex))
+					g.put(x, y, fillGlyph(series.Variant, x, y, topY, baseY, seriesIndex, stacked), seriesColorFor(series, seriesIndex, dimmed))
 				}
 			}
 			edge := edgeRune(false)
 			if fill {
 				edge = '▄'
 			}
-			g.put(x, topY, edge, seriesColor(seriesIndex))
+			g.put(x, topY, edge, seriesColorFor(series, seriesIndex, dimmed))
+		}
+		if !fill {
+			for x := 1; x < o.Width; x++ {
+				from := plotY(sampledValue(c, seriesIndex, x-1, o.Width), maximum, o.Height)
+				to := plotY(sampledValue(c, seriesIndex, x, o.Width), maximum, o.Height)
+				g.line(x-1, from, x, to, lineRune(seriesIndex), seriesColorFor(series, seriesIndex, dimmed))
+			}
 		}
 	}
 }
@@ -141,6 +193,7 @@ func renderBars(g grid, c Chart, o Options, maximum float64) {
 		rawBase := 0.0
 		total := pointTotal(c, point)
 		for si, s := range c.Series {
+			dimmed := o.HoveredSeries >= 0 && o.HoveredSeries != si
 			value := s.Values[point]
 			base := rawBase
 			if c.StackType == Percent && total > 0 {
@@ -155,9 +208,9 @@ func renderBars(g grid, c Chart, o Options, maximum float64) {
 			}
 			for px := start; px < start+barWidth; px++ {
 				for y := topY; y < baseY; y++ {
-					g.put(px, y, fillRune(s.Variant, px, y, si), seriesColor(si))
+					g.put(px, y, fillGlyph(s.Variant, px, y, topY, baseY, si, stacked), seriesColorFor(s, si, dimmed))
 				}
-				g.put(px, topY, '▀', seriesColor(si))
+				g.put(px, topY, '▀', seriesColorFor(s, si, dimmed))
 			}
 			if stacked {
 				rawBase += s.Values[point]
@@ -226,10 +279,70 @@ func fillRune(variant Variant, x, y, series int) rune {
 	case Hatched:
 		return '▒'
 	case Dotted:
-		return '░'
+		return '·'
 	default:
-		return []rune{'░', '░', '▒', '▓'}[(x+y+series)%4]
+		// A 4x4 Bayer order reproduces dither-kit's ordered, pixel-stable
+		// gradient instead of introducing frame-to-frame noise.
+		matrix := [4][4]int{{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}
+		level := (x*5 + y*3 + series*4) & 15
+		t := matrix[y&3][x&3]
+		if level < t/2 {
+			return '░'
+		}
+		if level < t {
+			return '▒'
+		}
+		if level < t+4 {
+			return '▓'
+		}
+		return '█'
 	}
+}
+
+// fillGlyph is the cell-sized equivalent of dither-kit's nc() canvas rule.
+// The threshold is evaluated against depth inside the current band, which is
+// what makes a gradient fade toward its edge instead of merely alternating
+// characters by screen position.
+func fillGlyph(variant Variant, x, y, top, base, series int, stacked bool) rune {
+	if variant == Solid {
+		return '█'
+	}
+	if variant == Hatched && (x+y)&3 >= 2 {
+		return ' '
+	}
+	height := base - top
+	if height <= 0 {
+		return '▄'
+	}
+	depth := float64(y-top) / float64(height)
+	if stacked {
+		depth = .5 + .5*depth
+	}
+	threshold := float64([4][4]int{{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}[y&3][x&3]) / 16
+	sparse := 0.0
+	if variant == Dotted {
+		sparse = .12
+	}
+	if stacked {
+		sparse += .2
+	}
+	filled := variant == Solid || depth > threshold-.1-sparse
+	if variant == Dotted && !filled {
+		return ' '
+	}
+	if !filled {
+		return '░'
+	}
+	if variant == Dotted {
+		return '·'
+	}
+	if depth > .78 {
+		return '▓'
+	}
+	if depth > .42 {
+		return '▒'
+	}
+	return '░'
 }
 
 func edgeRune(filled bool) rune {
@@ -289,7 +402,8 @@ func renderPie(c Chart, o Options) []string {
 			if index == o.Selected {
 				glyph = '▓'
 			}
-			g.put(x, y, glyph, seriesColor(index))
+			dimmed := o.HoveredSeries >= 0 && o.HoveredSeries != index
+			g.put(x, y, glyph, seriesColorFor(s, index, dimmed))
 		}
 	}
 	return g.lines(o.Color)
@@ -405,7 +519,8 @@ func legend(c Chart, o Options) string {
 	}
 	p := make([]string, len(c.Series))
 	for i, s := range c.Series {
-		p[i] = paint("●", seriesColor(i), o.Color) + " " + s.Name
+		dimmed := o.HoveredSeries >= 0 && o.HoveredSeries != i
+		p[i] = paint("■", seriesColorFor(s, i, dimmed), o.Color) + " " + s.Name
 	}
 	return strings.Join(p, "  ")
 }
@@ -455,8 +570,11 @@ func readout(c Chart, o Options) string {
 	if len(c.Labels) > o.Selected {
 		label = c.Labels[o.Selected]
 	}
-	s := c.Series[o.ActiveSeries]
-	return paint("◆", selectionColor, o.Color) + " " + label + "  " + s.Name + ": " + fmt.Sprintf("%.2f", s.Values[o.Selected])
+	parts := make([]string, len(c.Series))
+	for i, s := range c.Series {
+		parts[i] = s.Name + ": " + fmt.Sprintf("%.2f", s.Values[o.Selected])
+	}
+	return paint("◆", selectionColor, o.Color) + " " + label + "  " + strings.Join(parts, "  ")
 }
 func bold(s string, color bool) string {
 	if !color {
@@ -550,7 +668,26 @@ const (
 	selectionColor = 226
 )
 
-func seriesColor(i int) int { return []int{39, 99, 46, 214, 141}[i%5] }
+func seriesColor(i int) int { return []int{33, 99, 46, 205, 208}[i%5] }
+
+func seriesColorFor(s Series, index int, dimmed bool) int {
+	colors := map[string]int{"blue": 33, "purple": 99, "green": 46, "pink": 205, "orange": 208, "red": 196, "grey": 244}
+	color, ok := colors[s.Color]
+	if !ok {
+		color = seriesColor(index)
+	}
+	if dimmed {
+		return 240
+	}
+	return color
+}
+
+func lineRune(index int) rune {
+	if index%2 == 1 {
+		return '╌'
+	}
+	return '•'
+}
 func paint(s string, c int, on bool) string {
 	if !on {
 		return s

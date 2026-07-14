@@ -38,6 +38,9 @@ type Series struct {
 	Name    string
 	Values  []float64
 	Variant Variant
+	// Color optionally selects one of dither-kit's named palette colours.
+	// When empty, the stable palette order is used.
+	Color string
 }
 
 // Chart is renderer-independent chart input.
@@ -47,6 +50,9 @@ type Chart struct {
 	Labels    []string
 	Series    []Series
 	StackType StackType
+	// Bloom controls the terminal approximation of dither-kit's glow. It is
+	// intentionally a string so chart does not import component.
+	Bloom string
 }
 
 func (c Chart) validate() error {
