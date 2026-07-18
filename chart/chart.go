@@ -1,7 +1,12 @@
 // Package chart renders dithered, interactive-friendly charts for terminals.
 package chart
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+
+	"github.com/pol-cova/termkit-go/style"
+)
 
 // Kind describes a chart geometry.
 type Kind string
@@ -15,13 +20,13 @@ const (
 )
 
 // Variant controls the texture used for a series fill.
-type Variant string
+type Variant = style.Variant
 
 const (
-	Gradient Variant = "gradient"
-	Dotted   Variant = "dotted"
-	Hatched  Variant = "hatched"
-	Solid    Variant = "solid"
+	Gradient = style.Gradient
+	Dotted   = style.Dotted
+	Hatched  = style.Hatched
+	Solid    = style.Solid
 )
 
 // StackType controls how cartesian series share vertical space.
@@ -50,9 +55,7 @@ type Chart struct {
 	Labels    []string
 	Series    []Series
 	StackType StackType
-	// Bloom controls the terminal approximation of dither-kit's glow. It is
-	// intentionally a string so chart does not import component.
-	Bloom string
+	Bloom     style.Bloom
 }
 
 func (c Chart) validate() error {
@@ -65,6 +68,16 @@ func (c Chart) validate() error {
 	for _, s := range c.Series {
 		if len(s.Values) == 0 {
 			return fmt.Errorf("termkit/chart: series %q has no values", s.Name)
+		}
+		allMissing := true
+		for _, v := range s.Values {
+			if !math.IsNaN(v) {
+				allMissing = false
+				break
+			}
+		}
+		if allMissing {
+			return fmt.Errorf("termkit/chart: series %q has only missing values", s.Name)
 		}
 		if len(c.Labels) > 0 && len(s.Values) != len(c.Labels) {
 			return fmt.Errorf("termkit/chart: series %q has %d values for %d labels", s.Name, len(s.Values), len(c.Labels))

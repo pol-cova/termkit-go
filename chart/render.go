@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/pol-cova/termkit-go/style"
 )
 
 // Options controls the terminal canvas. Width and Height exclude the title,
@@ -15,6 +17,7 @@ type Options struct {
 	HoveredSeries int
 	Color         bool
 	Interactive   bool
+	Formatter     ValueFormatter
 }
 
 // Render draws a chart using Unicode cells and ANSI colour when requested.
@@ -62,7 +65,7 @@ func Render(chart Chart, options Options) (string, error) {
 		b.WriteString("\n" + radarLabels(chart))
 	}
 	b.WriteString("\n" + legend(chart, options))
-	b.WriteString("\n" + readout(chart, options))
+	b.WriteString("\n" + Readout(chart, options))
 	return b.String(), nil
 }
 
@@ -109,7 +112,8 @@ func normalized(o Options, c Chart) Options {
 
 func renderCartesian(c Chart, o Options, area, bars bool) []string {
 	grid := newGrid(o.Width, o.Height)
-	maxValue := chartMaximum(c)
+	layout := NewLayout(c)
+	maxValue := layout.MaxValue
 	for y := 0; y < o.Height; y++ {
 		for x := 0; x < o.Width; x++ {
 			if y == o.Height-1 {
@@ -122,7 +126,7 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 	} else {
 		renderSeries(grid, c, o, maxValue, area)
 	}
-	if c.Bloom != "" && c.Bloom != "off" {
+	if c.Bloom != "" && c.Bloom != style.BloomOff {
 		for x := 3; x < o.Width-3; x++ {
 			if (x*17+o.Height*11)%89 == 0 {
 				y := plotY(sampledValue(c, 0, x, o.Width), maxValue, o.Height)
@@ -130,7 +134,7 @@ func renderCartesian(c Chart, o Options, area, bars bool) []string {
 			}
 		}
 	}
-	sx := pointX(o.Selected, c.pointCount(), o.Width)
+	sx := layout.PointX(o.Selected, o.Width)
 	for y := 0; y < o.Height; y++ {
 		if y < o.Height-1 {
 			grid.put(sx, y, '┊', selectionColor)
@@ -182,6 +186,7 @@ func renderSeries(g grid, c Chart, o Options, maximum float64, fill bool) {
 }
 
 func renderBars(g grid, c Chart, o Options, maximum float64) {
+	layout := NewLayout(c)
 	stacked := c.StackType == Stacked || c.StackType == Percent
 	count := c.pointCount()
 	barWidth := max(1, o.Width/(count*2))
@@ -189,9 +194,9 @@ func renderBars(g grid, c Chart, o Options, maximum float64) {
 		barWidth = max(1, o.Width/(count*(len(c.Series)+1)))
 	}
 	for point := 0; point < count; point++ {
-		x := pointX(point, count, o.Width)
+		x := layout.PointX(point, o.Width)
 		rawBase := 0.0
-		total := pointTotal(c, point)
+		total := layout.PointTotal(point)
 		for si, s := range c.Series {
 			dimmed := o.HoveredSeries >= 0 && o.HoveredSeries != si
 			value := s.Values[point]
@@ -219,59 +224,6 @@ func renderBars(g grid, c Chart, o Options, maximum float64) {
 	}
 }
 
-func chartMaximum(c Chart) float64 {
-	if c.StackType == Percent {
-		return 100
-	}
-	maximum := maxSeries(c.Series)
-	if c.StackType == Stacked {
-		maximum = 0
-		for point := 0; point < c.pointCount(); point++ {
-			if total := pointTotal(c, point); total > maximum {
-				maximum = total
-			}
-		}
-	}
-	if maximum == 0 {
-		return 1
-	}
-	return maximum
-}
-func pointTotal(c Chart, point int) float64 {
-	total := 0.0
-	for _, series := range c.Series {
-		total += maxFloat(series.Values[point], 0)
-	}
-	return total
-}
-func sampledTotal(c Chart, x, width int) float64 {
-	total := 0.0
-	for i := range c.Series {
-		total += sampledValue(c, i, x, width)
-	}
-	return total
-}
-func sampledBase(c Chart, until, x, width int) float64 {
-	base := 0.0
-	for i := 0; i < until; i++ {
-		base += sampledValue(c, i, x, width)
-	}
-	return base
-}
-func sampledValue(c Chart, series, x, width int) float64 {
-	values := c.Series[series].Values
-	if len(values) == 1 {
-		return values[0]
-	}
-	position := float64(x) * float64(len(values)-1) / float64(max(1, width-1))
-	left := int(math.Floor(position))
-	right := min(left+1, len(values)-1)
-	return values[left] + (values[right]-values[left])*(position-float64(left))
-}
-func plotY(value, maximum float64, height int) int {
-	y := height - 1 - int(math.Round(value/maximum*float64(height-1)))
-	return min(height-1, max(0, y))
-}
 func fillRune(variant Variant, x, y, series int) rune {
 	switch variant {
 	case Solid:
@@ -283,7 +235,7 @@ func fillRune(variant Variant, x, y, series int) rune {
 	default:
 		// A 4x4 Bayer order reproduces dither-kit's ordered, pixel-stable
 		// gradient instead of introducing frame-to-frame noise.
-		matrix := [4][4]int{{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}
+		matrix := style.Bayer4
 		level := (x*5 + y*3 + series*4) & 15
 		t := matrix[y&3][x&3]
 		if level < t/2 {
@@ -318,7 +270,7 @@ func fillGlyph(variant Variant, x, y, top, base, series int, stacked bool) rune 
 	if stacked {
 		depth = .5 + .5*depth
 	}
-	threshold := float64([4][4]int{{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}[y&3][x&3]) / 16
+	threshold := float64(style.Bayer4[y&3][x&3]) / 16
 	sparse := 0.0
 	if variant == Dotted {
 		sparse = .12
@@ -353,12 +305,13 @@ func edgeRune(filled bool) rune {
 }
 
 func xAxis(c Chart, o Options) string {
+	layout := NewLayout(c)
 	labels := make([]rune, o.Width)
 	for i := range labels {
 		labels[i] = ' '
 	}
 	for i, label := range c.Labels {
-		x := pointX(i, len(c.Labels), o.Width)
+		x := layout.PointX(i, o.Width)
 		start := max(0, x-len([]rune(label))/2)
 		for offset, r := range []rune(label) {
 			if start+offset < len(labels) {
@@ -415,10 +368,7 @@ func renderRadar(c Chart, o Options) []string {
 	cx, cy := o.Width/2, o.Height/2
 	rx := float64(max(2, o.Width-2)) / 2
 	ry := float64(max(2, o.Height-2)) / 2
-	maxValue := maxSeries(c.Series)
-	if maxValue == 0 {
-		maxValue = 1
-	}
+	maxValue := NewLayout(c).MaxValue
 	for ring := 1; ring <= 3; ring++ {
 		scale := float64(ring) / 3
 		points := make([][2]int, n)
@@ -472,42 +422,6 @@ func insidePolygon(x, y int, points [][2]int) bool {
 	return inside
 }
 
-func pointX(i, n, w int) int {
-	if n < 2 {
-		return w / 2
-	}
-	return int(math.Round(float64(i) * float64(w-1) / float64(n-1)))
-}
-func angle(i, n int) float64 { return -math.Pi/2 + 2*math.Pi*float64(i)/float64(n) }
-func maxSeries(ss []Series) float64 {
-	m := 0.0
-	for _, s := range ss {
-		for _, v := range s.Values {
-			if v > m {
-				m = v
-			}
-		}
-	}
-	return m
-}
-func maxFloat(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
 func dither(x, y, series int) rune {
 	patterns := []rune{'░', '▒', '▓', '█'}
 	return patterns[(x*3+y*5+series*2)%len(patterns)]
@@ -562,20 +476,6 @@ func labelAt(c Chart, index int) string {
 	return fmt.Sprintf("point %d", index+1)
 }
 
-func radarPoint(cx, cy int, rx, ry, a float64) [2]int {
-	return [2]int{cx + int(math.Round(math.Cos(a)*rx)), cy + int(math.Round(math.Sin(a)*ry))}
-}
-func readout(c Chart, o Options) string {
-	label := fmt.Sprintf("point %d", o.Selected+1)
-	if len(c.Labels) > o.Selected {
-		label = c.Labels[o.Selected]
-	}
-	parts := make([]string, len(c.Series))
-	for i, s := range c.Series {
-		parts[i] = s.Name + ": " + fmt.Sprintf("%.2f", s.Values[o.Selected])
-	}
-	return paint("◆", selectionColor, o.Color) + " " + label + "  " + strings.Join(parts, "  ")
-}
 func bold(s string, color bool) string {
 	if !color {
 		return s
@@ -671,11 +571,7 @@ const (
 func seriesColor(i int) int { return []int{33, 99, 46, 205, 208}[i%5] }
 
 func seriesColorFor(s Series, index int, dimmed bool) int {
-	colors := map[string]int{"blue": 33, "purple": 99, "green": 46, "pink": 205, "orange": 208, "red": 196, "grey": 244}
-	color, ok := colors[s.Color]
-	if !ok {
-		color = seriesColor(index)
-	}
+	color := style.Resolve(s.Color, index).ANSI256(false)
 	if dimmed {
 		return 240
 	}

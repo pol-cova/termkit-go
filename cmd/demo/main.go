@@ -49,7 +49,19 @@ func showPixelKit() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		fmt.Printf("\033[1mtermkit-go / %s — ANSI half-block raster\033[0m\n%s\n\n", kind, canvas.ANSI())
+		out, err := canvas.Auto()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		protocol := "ANSI half-block"
+		switch pixel.DetectProtocol() {
+		case pixel.ProtocolKitty:
+			protocol = "Kitty"
+		case pixel.ProtocolITerm2:
+			protocol = "iTerm2"
+		}
+		fmt.Printf("\033[1mtermkit-go / %s — %s raster\033[0m\n%s\n\n", kind, protocol, out)
 	}
 }
 

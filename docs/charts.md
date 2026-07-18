@@ -33,6 +33,10 @@ chart.Chart{
 
 `Options.Selected` controls the scrub column and readout. `Options.ActiveSeries` controls the selected series in pie charts and the readout. Set `Options.Color` to `false` for plain text snapshots.
 
+Use `chart.SelectedPoint(options)` when you need structured selection data instead of parsing the readout string. Pass `Options.Formatter` to customise value display — built-in helpers include `chart.DefaultFormatter`, `chart.PercentFormatter`, and `chart.SIFormatter`. Missing values can be represented with `math.NaN()`; they render as `—` in readouts and are skipped during pixel rendering.
+
+For raster output at logical-pixel resolution, see [pixel-backend.md](pixel-backend.md) and `chart.RenderPixel`.
+
 For the dither-kit interaction model, set `Options.Interactive` and provide
 `Options.HoveredSeries` while handling pointer/keyboard events in the host
 TUI. The active series is retained at full colour and other series are dimmed,

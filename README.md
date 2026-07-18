@@ -9,6 +9,9 @@
 The demo is a live Bubble Tea dashboard: use `1`–`5` to switch chart types,
 `←`/`→` (or `h`/`l`) to move the selection, `tab` to switch series, and `q` to quit.
 
+Run `go run ./cmd/demo --pixel` for raster charts. The demo auto-detects Kitty,
+iTerm2, or ANSI half-block output.
+
 Run `go run ./cmd/demo --dither-kit` for a static terminal comparison sheet
 covering the avatar, button states, gradient wash, and decorative sparkline.
 
@@ -24,9 +27,12 @@ go get github.com/pol-cova/termkit-go
 
 | Package | Includes | API |
 | --- | --- | --- |
-| `chart` | Area, line, bar, pie, radar; stacked and percent modes; interactive selection. | [docs](docs/charts.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) |
+| `chart` | Area, line, bar, pie, radar; stacked and percent modes; interactive selection; pixel raster backend. | [docs](docs/charts.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) |
+| `pixel` | Logical-pixel canvas with ANSI, Kitty, iTerm2, and auto-detected protocol output. | [docs](docs/pixel-backend.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/pixel) |
+| `style` | Shared Dither Kit palette, variants, bloom, and Bayer constants. | [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/style) |
 | `animate` | Tween, spring, pulse, repeat, and easing helpers. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/animate) |
 | `component` | Panels, inputs, selects, tabs, tables, sparklines, breadcrumbs, progress, gauges, spinners, badges, cards, dividers, status bars, dither-kit buttons, avatars, and gradient washes. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
+| `bubbletea` | Thin helpers for chart scrubbing, inputs, and selects in Bubble Tea apps. | [cookbook](docs/bubbletea.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/bubbletea) |
 | `sound` | Optional interaction cues through the terminal bell or your own player. | [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/sound) |
 
 Each package returns values or strings. It does not own your event loop, terminal, or rendering framework.
@@ -129,6 +135,8 @@ Go 1.24 or newer. The library itself has no required UI framework; the demo uses
 ## Docs
 
 - [Charts and visual variants](docs/charts.md) — chart types, stacking, selection, and rendering options
+- [Pixel raster backend](docs/pixel-backend.md) — logical-pixel charts with auto protocol detection
+- [Bubble Tea cookbook](docs/bubbletea.md) — wiring charts, inputs, and motion into Bubble Tea
 - [Motion and components](docs/components.md) — animation, panels, inputs, selects, tables, and interaction cues
 - [Dither Kit fidelity map](docs/dither-kit-fidelity.md) — reference component mapping and ported visual constants
 - [Interactive demo source](cmd/demo/main.go) · [VHS recording script](demo.tape) · [GIF preview](docs/demo.gif)

@@ -172,7 +172,7 @@ func (s Select) View(width int, tone Tone) string {
 		if s.Options[index].Description != "" {
 			label += " · " + s.Options[index].Description
 		}
-		lines = append(lines, paint(marker+truncate(label, width-2), itemTone))
+		lines = append(lines, paint(marker+truncateDisplay(label, width-2), itemTone))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -196,7 +196,7 @@ func Tabs(labels []string, active, width int) string {
 	}
 	result := strings.Join(parts, "  ")
 	if width > 0 {
-		result = truncate(result, width)
+		result = truncateDisplay(result, width)
 	}
 	return result
 }
@@ -209,11 +209,11 @@ func Table(headers []string, rows [][]string, width int) string {
 	cols := len(headers)
 	widths := make([]int, cols)
 	for n, h := range headers {
-		widths[n] = len([]rune(h))
+		widths[n] = displayWidth(h)
 	}
 	for _, row := range rows {
 		for n := 0; n < len(row) && n < cols; n++ {
-			if w := len([]rune(row[n])); w > widths[n] {
+			if w := displayWidth(row[n]); w > widths[n] {
 				widths[n] = w
 			}
 		}
@@ -244,7 +244,7 @@ func Table(headers []string, rows [][]string, width int) string {
 			if n < len(row) {
 				value = row[n]
 			}
-			cells[n] = " " + pad(truncate(value, widths[n]), widths[n]) + " "
+			cells[n] = " " + padDisplay(truncateDisplay(value, widths[n]), widths[n]) + " "
 		}
 		return "│" + strings.Join(cells, "│") + "│"
 	}
@@ -270,28 +270,16 @@ func Panel(title, content string, width int, tone Tone) string {
 	}
 	inner := width - 4
 	lines := strings.Split(content, "\n")
-	title = truncate(title, width-6)
-	out := []string{"╭─ " + paint(title, tone) + " " + strings.Repeat("─", maxInt(0, width-len([]rune(title))-6)) + "╮"}
+	title = truncateDisplay(title, width-6)
+	out := []string{"╭─ " + paint(title, tone) + " " + strings.Repeat("─", maxInt(0, width-displayWidth(title)-6)) + "╮"}
 	for _, line := range lines {
-		out = append(out, "│ "+pad(truncate(line, inner), inner)+" │")
+		out = append(out, "│ "+padDisplay(truncateDisplay(line, inner), inner)+" │")
 	}
 	out = append(out, "╰"+strings.Repeat("─", width-2)+"╯")
 	return strings.Join(out, "\n")
 }
 
-func truncate(value string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	r := []rune(strip(value))
-	if len(r) <= width {
-		return string(r)
-	}
-	if width == 1 {
-		return "…"
-	}
-	return string(r[:width-1]) + "…"
-}
+func truncate(value string, width int) string { return truncateDisplay(value, width) }
 func maxInt(a, b int) int {
 	if a > b {
 		return a
