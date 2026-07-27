@@ -43,3 +43,34 @@ func truncateDisplay(value string, width int) string {
 	out.WriteRune('…')
 	return out.String()
 }
+
+// fitDisplayWidth truncates or pads a string to an exact visible width, preserving leading ANSI codes.
+func fitDisplayWidth(value string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	prefix := ansiPrefix(value)
+	plain := strip(value)
+	if runewidth.StringWidth(plain) <= width {
+		return padDisplay(prefix+plain, width)
+	}
+	return prefix + truncateDisplay(plain, width)
+}
+
+func ansiPrefix(value string) string {
+	var b strings.Builder
+	i := 0
+	for i < len(value) {
+		if value[i] != '\x1b' {
+			break
+		}
+		for j := i; j < len(value); j++ {
+			b.WriteByte(value[j])
+			if value[j] == 'm' {
+				i = j + 1
+				break
+			}
+		}
+	}
+	return b.String()
+}

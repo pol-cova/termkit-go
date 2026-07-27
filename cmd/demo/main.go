@@ -23,6 +23,10 @@ type frame struct{}
 var kinds = []chart.Kind{chart.Area, chart.Line, chart.Bar, chart.Pie, chart.Radar}
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--monitor" {
+		runMonitor()
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "--dither-kit" {
 		showDitherKit()
 		return

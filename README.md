@@ -27,11 +27,11 @@ go get github.com/pol-cova/termkit-go
 
 | Package | Includes | API |
 | --- | --- | --- |
-| `chart` | Area, line, bar, pie, radar; stacked and percent modes; interactive selection; pixel raster backend. | [docs](docs/charts.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) |
+| `chart` | Area, line, bar, pie, radar; stacked and percent modes; interactive selection; pixel raster backend; braille time-series for monitor graphs. | [docs](docs/charts.md) · [monitor](docs/monitor.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/chart) |
 | `pixel` | Logical-pixel canvas with ANSI, Kitty, iTerm2, and auto-detected protocol output. | [docs](docs/pixel-backend.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/pixel) |
 | `style` | Shared Dither Kit palette, variants, bloom, and Bayer constants. | [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/style) |
 | `animate` | Tween, spring, pulse, repeat, and easing helpers. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/animate) |
-| `component` | Panels, inputs, selects, tabs, tables, sparklines, breadcrumbs, progress, gauges, spinners, badges, cards, dividers, status bars, dither-kit buttons, avatars, and gradient washes. | [docs](docs/components.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
+| `component` | Panels, inputs, selects, tabs, tables, sparklines, breadcrumbs, progress, gauges, spinners, badges, cards, dividers, status bars, grid layout, border titles, dither-kit buttons, avatars, and gradient washes. | [docs](docs/components.md) · [monitor layout](docs/monitor.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/component) |
 | `bubbletea` | Thin helpers for chart scrubbing, inputs, and selects in Bubble Tea apps. | [cookbook](docs/bubbletea.md) · [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/bubbletea) |
 | `sound` | Optional interaction cues through the terminal bell or your own player. | [Go reference](https://pkg.go.dev/github.com/pol-cova/termkit-go/sound) |
 
@@ -124,9 +124,11 @@ player.Play(sound.Success)
 
 ```bash
 go run ./cmd/demo
+go run ./cmd/demo --monitor   # btm-style braille graphs + tables
 ```
 
 Use `1`–`5` to change chart type, `←`/`→` (or `h`/`l`) to scrub, `tab` to switch series, and `q` to quit.
+The monitor demo uses synthetic data; `←`/`→` scrubs the time window.
 
 ## Requirements
 
@@ -135,6 +137,8 @@ Go 1.24 or newer. The library itself has no required UI framework; the demo uses
 ## Docs
 
 - [Charts and visual variants](docs/charts.md) — chart types, stacking, selection, and rendering options
+- [Monitor graphs](docs/monitor.md) — braille time-series, grid layout, and pane composition
+- [PRD: btm graphs](docs/prd-btm-graphs.md) · [SPEC: time-series](docs/spec-timeseries.md)
 - [Pixel raster backend](docs/pixel-backend.md) — logical-pixel charts with auto protocol detection
 - [Bubble Tea cookbook](docs/bubbletea.md) — wiring charts, inputs, and motion into Bubble Tea
 - [Motion and components](docs/components.md) — animation, panels, inputs, selects, tables, and interaction cues
