@@ -4,15 +4,21 @@ The screenshot-style Dither Kit charts are best understood as a raster, not as
 Unicode bar characters. `chart.RenderPixel` keeps the chart model unchanged,
 but renders its geometry into `pixel.Canvas` at logical-pixel resolution.
 
+Run `go run ./cmd/demo --pixel` to see all five chart geometries. `Canvas.Auto()`
+picks Kitty or iTerm2 when available, otherwise ANSI half-blocks.
+
 ```go
 c, _ := chart.RenderPixel(chart.Chart{Kind: chart.Area, Series: series}, chart.PixelOptions{
     Width: 192, Height: 48,
 })
-fmt.Print(c.ANSI())   // works in ordinary truecolor terminals
+out, err := canvas.Auto()
+if err != nil { panic(err) }
+fmt.Print(out)
 ```
 
-There are three output strategies:
+There are three explicit output strategies:
 
+- `Canvas.Auto()` / `Canvas.Render(protocol)` — recommended; picks the richest protocol.
 - `Canvas.ANSI()` uses one `▀`/`▄` cell for two vertical pixels. This is the
   portable fallback and preserves the dither texture, palette, and geometry,
   but terminal cells still have character-grid proportions.

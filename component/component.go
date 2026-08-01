@@ -40,8 +40,8 @@ func StatusBar(options StatusBarOptions) string {
 	if options.Right == "" {
 		return left
 	}
-	if options.Width > len(strip(left))+len(options.Right)+3 {
-		return left + strings.Repeat(" ", options.Width-len(strip(left))-len(options.Right)) + paint(options.Right, Muted)
+	if options.Width > displayWidth(left)+displayWidth(options.Right)+3 {
+		return left + strings.Repeat(" ", options.Width-displayWidth(left)-displayWidth(options.Right)) + paint(options.Right, Muted)
 	}
 	return left + "  " + paint(options.Right, Muted)
 }
@@ -84,7 +84,7 @@ func Card(title, content string, width int) string {
 	}
 	border := "┌" + strings.Repeat("─", width-2) + "┐"
 	footer := "└" + strings.Repeat("─", width-2) + "┘"
-	line := func(value string) string { return "│ " + pad(value, width-4) + " │" }
+	line := func(value string) string { return "│ " + padDisplay(value, width-4) + " │" }
 	return border + "\n" + line(paint(title, Accent)) + "\n" + line(content) + "\n" + footer
 }
 
@@ -116,13 +116,7 @@ func toneColor(tone Tone) int {
 		return 244
 	}
 }
-func pad(value string, width int) string {
-	visible := len(strip(value))
-	if visible >= width {
-		return value
-	}
-	return value + strings.Repeat(" ", width-visible)
-}
+func pad(value string, width int) string { return padDisplay(value, width) }
 func strip(value string) string {
 	for {
 		start := strings.Index(value, "\x1b[")

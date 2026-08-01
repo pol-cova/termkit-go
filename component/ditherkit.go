@@ -3,19 +3,21 @@ package component
 import (
 	"fmt"
 	"strings"
+
+	"github.com/pol-cova/termkit-go/style"
 )
 
 // DitherColor is the seven-colour palette used by dither-kit.
-type DitherColor string
+type DitherColor = style.Color
 
 const (
-	DitherBlue   DitherColor = "blue"
-	DitherPurple DitherColor = "purple"
-	DitherGreen  DitherColor = "green"
-	DitherPink   DitherColor = "pink"
-	DitherOrange DitherColor = "orange"
-	DitherRed    DitherColor = "red"
-	DitherGrey   DitherColor = "grey"
+	DitherBlue   = style.Blue
+	DitherPurple = style.Purple
+	DitherGreen  = style.Green
+	DitherPink   = style.Pink
+	DitherOrange = style.Orange
+	DitherRed    = style.Red
+	DitherGrey   = style.Grey
 )
 
 // Short aliases mirror dither-kit's public vocabulary.
@@ -27,80 +29,131 @@ const (
 )
 
 // DitherVariant controls the ordered-dither texture of a standalone component.
-type DitherVariant string
+type DitherVariant = style.Variant
 
 const (
-	DitherGradientVariant DitherVariant = "gradient"
-	DitherDottedVariant   DitherVariant = "dotted"
-	DitherHatchedVariant  DitherVariant = "hatched"
-	DitherSolidVariant    DitherVariant = "solid"
+	DitherGradientVariant = style.Gradient
+	DitherDottedVariant   = style.Dotted
+	DitherHatchedVariant  = style.Hatched
+	DitherSolidVariant    = style.Solid
 )
 
 // Bloom controls how much visual emphasis a component receives. Terminals
 // cannot blur pixels, so bloom is represented by denser/brighter glyphs.
-type Bloom string
+type Bloom = style.Bloom
 
 const (
-	BloomOff  Bloom = "off"
-	BloomLow  Bloom = "low"
-	BloomHigh Bloom = "high"
-	BloomAura Bloom = "aura"
+	BloomOff  = style.BloomOff
+	BloomLow  = style.BloomLow
+	BloomHigh = style.BloomHigh
+	BloomAura = style.BloomAura
 )
+
+type DitherButtonOptions struct {
+	Label            string
+	Color            DitherColor
+	Variant          DitherVariant
+	Bloom            Bloom
+	Hovered, Pressed bool
+	Disabled         bool
+}
+
+type DitherGradientOptions struct {
+	Width, Height int
+	From, To      DitherColor
+	Direction     string
+	Bloom         Bloom
+}
+
+type DitherSparklineOptions struct {
+	Values        []float64
+	Width, Height int
+	Color         DitherColor
+	Variant       DitherVariant
+	Bloom         Bloom
+}
+
+type DitherAvatarOptions struct {
+	Name  string
+	Size  int
+	Hue   DitherColor
+	Bloom Bloom
+}
+
+type DitherAvatarHueOptions struct {
+	Name, Mirror string
+	Size, Hue    int
+	Bloom        Bloom
+}
 
 // DitherButton renders the compact pixel-button treatment from dither-kit.
 // hovered and pressed let event-loop owners map their own input state.
 func DitherButton(label string, color DitherColor, variant DitherVariant, bloom Bloom, hovered, pressed, disabled bool) string {
-	if variant == "" {
-		variant = DitherGradientVariant
+	return DitherButtonWith(DitherButtonOptions{
+		Label: label, Color: color, Variant: variant, Bloom: bloom,
+		Hovered: hovered, Pressed: pressed, Disabled: disabled,
+	})
+}
+
+func DitherButtonWith(o DitherButtonOptions) string {
+	if o.Variant == "" {
+		o.Variant = DitherGradientVariant
 	}
-	if bloom == "" {
-		bloom = BloomOff
+	if o.Bloom == "" {
+		o.Bloom = BloomOff
 	}
 	left, right := "[", "]"
-	if disabled {
+	color := o.Color
+	if o.Disabled {
 		color = DitherGrey
 	}
-	fill := ditherFill(variant, len([]rune(label))+2, int(bloomDensity(bloom, hovered, pressed)))
-	text := left + fill + " " + label + " " + fill + right
-	return paint256(text, ditherANSI(color, hovered || pressed))
+	fill := ditherFill(o.Variant, runeWidth(o.Label)+2, style.BloomDensity(o.Bloom, o.Hovered, o.Pressed))
+	text := left + fill + " " + o.Label + " " + fill + right
+	return paint256(text, color.ANSI256(o.Hovered || o.Pressed))
 }
 
 // DitherGradient renders a directional dither wash as terminal rows.
 func DitherGradient(width, height int, from, to DitherColor, direction string, bloom Bloom) string {
-	if width < 1 || height < 1 {
+	return DitherGradientWith(DitherGradientOptions{
+		Width: width, Height: height, From: from, To: to, Direction: direction, Bloom: bloom,
+	})
+}
+
+func DitherGradientWith(o DitherGradientOptions) string {
+	if o.Width < 1 || o.Height < 1 {
 		return ""
 	}
-	if from == "" {
-		from = DitherPurple
+	if o.From == "" {
+		o.From = DitherPurple
 	}
-	if direction == "" {
-		direction = "up"
+	if o.Direction == "" {
+		o.Direction = "up"
 	}
-	rows := make([]string, height)
-	for y := 0; y < height; y++ {
+	rows := make([]string, o.Height)
+	for y := 0; y < o.Height; y++ {
 		var row strings.Builder
-		for x := 0; x < width; x++ {
+		for x := 0; x < o.Width; x++ {
 			var progress float64
-			switch direction {
+			switch o.Direction {
 			case "down":
-				progress = 1 - (float64(y)+.5)/float64(height)
+				progress = 1 - (float64(y)+.5)/float64(o.Height)
 			case "left":
-				progress = (float64(x) + .5) / float64(width)
+				progress = (float64(x) + .5) / float64(o.Width)
 			case "right":
-				progress = 1 - (float64(x)+.5)/float64(width)
+				progress = 1 - (float64(x)+.5)/float64(o.Width)
 			default:
-				progress = (float64(y) + .5) / float64(height)
+				progress = (float64(y) + .5) / float64(o.Height)
 			}
-			threshold := bayer4[y&3][x&3] / 16
+			threshold := float64(style.Bayer4[y&3][x&3]) / 16
 			if progress <= threshold {
 				row.WriteByte(' ')
 				continue
 			}
-			choice := from
-			if to != "" && to != from && progress < .5 {
-				choice = to
+			choice := o.From
+			if o.To != "" && o.To != o.From && progress < .5 {
+				choice = o.To
 			}
-			if to == "" && progress < .22 {
+			if o.To == "" && progress < .22 {
 				row.WriteByte(' ')
 				continue
 			}
@@ -111,33 +164,37 @@ func DitherGradient(width, height int, from, to DitherColor, direction string, b
 			if progress > .9 {
 				glyph = "▓"
 			}
-			row.WriteString(paintRGB(glyph, ditherRGB(choice), bloom != BloomOff))
+			row.WriteString(paintRGB(glyph, choice.RGB(), o.Bloom != BloomOff))
 		}
 		rows[y] = row.String()
 	}
 	return strings.Join(rows, "\n")
 }
 
-// DitherSparkline is the decorative, axis-free sparkline exposed by dither-kit.
-// It uses one terminal cell per column and keeps a small dithered area under
-// the interpolated stroke so it remains legible in plain terminals.
+// DitherSparkline renders a decorative, axis-free sparkline.
 func DitherSparkline(values []float64, width, height int, color DitherColor, variant DitherVariant, bloom Bloom) string {
-	if len(values) == 0 || width < 1 || height < 2 {
+	return DitherSparklineWith(DitherSparklineOptions{
+		Values: values, Width: width, Height: height, Color: color, Variant: variant, Bloom: bloom,
+	})
+}
+
+func DitherSparklineWith(o DitherSparklineOptions) string {
+	if len(o.Values) == 0 || o.Width < 1 || o.Height < 2 {
 		return ""
 	}
-	if width < 4 {
-		width = 4
+	if o.Width < 4 {
+		o.Width = 4
 	}
-	if height < 3 {
-		height = 3
+	if o.Height < 3 {
+		o.Height = 3
 	}
-	if color == "" {
-		color = DitherGreen
+	if o.Color == "" {
+		o.Color = DitherGreen
 	}
-	if variant == "" {
-		variant = DitherGradientVariant
+	if o.Variant == "" {
+		o.Variant = DitherGradientVariant
 	}
-	points := resample(values, width)
+	points := resample(o.Values, o.Width)
 	lo, hi := points[0], points[0]
 	for _, v := range points[1:] {
 		if v < lo {
@@ -147,28 +204,28 @@ func DitherSparkline(values []float64, width, height int, color DitherColor, var
 			hi = v
 		}
 	}
-	plot := make([][]rune, height)
+	plot := make([][]rune, o.Height)
 	for y := range plot {
-		plot[y] = []rune(strings.Repeat(" ", width))
+		plot[y] = []rune(strings.Repeat(" ", o.Width))
 	}
-	pointY := make([]int, width)
+	pointY := make([]int, o.Width)
 	for x, v := range points {
 		ratio := 0.5
 		if hi > lo {
 			ratio = (v - lo) / (hi - lo)
 		}
-		pointY[x] = height - 1 - int(ratio*float64(height-2))
+		pointY[x] = o.Height - 1 - int(ratio*float64(o.Height-2))
 	}
 	for x, top := range pointY {
-		for y := top + 1; y < height; y++ {
-			plot[y][x] = []rune(ditherGlyph(variant, x, y))[0]
+		for y := top + 1; y < o.Height; y++ {
+			plot[y][x] = []rune(ditherGlyph(o.Variant, x, y))[0]
 		}
 		plot[top][x] = '•'
 		if x > 0 {
 			connectSpark(plot, pointY[x-1], top, x)
 		}
 	}
-	if bloom == BloomAura || bloom == BloomHigh {
+	if o.Bloom == BloomAura || o.Bloom == BloomHigh {
 		for x, y := range pointY {
 			if (x*7+y*3)%11 == 0 {
 				plot[y][x] = '✦'
@@ -180,7 +237,7 @@ func DitherSparkline(values []float64, width, height int, color DitherColor, var
 		if y > 0 {
 			b.WriteByte('\n')
 		}
-		b.WriteString(paintRGB(string(row), ditherRGB(color), bloom != BloomOff))
+		b.WriteString(paintRGB(string(row), o.Color.RGB(), o.Bloom != BloomOff))
 	}
 	return b.String()
 }
@@ -209,40 +266,31 @@ func connectSpark(plot [][]rune, from, to, x int) {
 	}
 }
 
-func ditherRGB(c DitherColor) [3]int {
-	switch c {
-	case DitherGreen:
-		return [3]int{40, 210, 110}
-	case DitherBlue:
-		return [3]int{53, 143, 243}
-	case DitherPurple:
-		return [3]int{150, 110, 255}
-	case DitherPink:
-		return [3]int{240, 90, 190}
-	case DitherOrange:
-		return [3]int{255, 150, 50}
-	case DitherRed:
-		return [3]int{240, 70, 70}
-	}
-	return [3]int{92, 92, 100}
-}
-
-// DitherAvatar returns a deterministic mirrored pixel avatar. Equal names
-// always produce equal output, matching dither-kit's seeded avatar contract.
+// DitherAvatar returns a deterministic mirrored pixel avatar.
 func DitherAvatar(name string, size int, hue DitherColor, bloom Bloom) string {
-	return DitherAvatarHue(name, size, ditherHue(hue), "auto", bloom)
+	return DitherAvatarWith(DitherAvatarOptions{Name: name, Size: size, Hue: hue, Bloom: bloom})
 }
 
-// DitherAvatarHue is the numeric-hue form used by the web component. mirror
-// accepts "auto", "horizontal", or "vertical".
+func DitherAvatarWith(o DitherAvatarOptions) string {
+	return DitherAvatarHueWith(DitherAvatarHueOptions{
+		Name: o.Name, Size: o.Size, Hue: o.Hue.Hue(), Mirror: "auto", Bloom: o.Bloom,
+	})
+}
+
+// DitherAvatarHue is the numeric-hue form used by the web component.
 func DitherAvatarHue(name string, size, hue int, mirror string, bloom Bloom) string {
+	return DitherAvatarHueWith(DitherAvatarHueOptions{Name: name, Size: size, Hue: hue, Mirror: mirror, Bloom: bloom})
+}
+
+func DitherAvatarHueWith(o DitherAvatarHueOptions) string {
+	size := o.Size
 	if size < 4 {
 		size = 4
 	}
 	if size > 32 {
 		size = 32
 	}
-	seed := fnvSeed(name)
+	seed := fnvSeed(o.Name)
 	rng := func() float64 {
 		seed ^= seed << 13
 		seed ^= seed >> 17
@@ -259,12 +307,11 @@ func DitherAvatarHue(name string, size, hue int, mirror string, bloom Bloom) str
 	for i := range density {
 		density[i] = .55 + rng()*.45
 	}
-	vertical := mirror == "vertical" || (mirror == "auto" && autoMirror)
+	vertical := o.Mirror == "vertical" || (o.Mirror == "auto" && autoMirror)
 	rows := make([]string, size)
 	for y := 0; y < size; y++ {
 		var b strings.Builder
 		for x := 0; x < size; x++ {
-			// Map terminal cells onto the reference's 8×8 logical bitmap.
 			py, px := y*8/size, x*8/size
 			if vertical {
 				py = minInt(py, 7-py)
@@ -276,7 +323,7 @@ func DitherAvatarHue(name string, size, hue int, mirror string, bloom Bloom) str
 				b.WriteRune(' ')
 				continue
 			}
-			threshold := bayer4[py&3][px&3] / 16.0
+			threshold := float64(style.Bayer4[py&3][px&3]) / 16.0
 			bright := density[idx]
 			if bright < threshold*.7 {
 				b.WriteRune('░')
@@ -286,15 +333,12 @@ func DitherAvatarHue(name string, size, hue int, mirror string, bloom Bloom) str
 				b.WriteRune('▓')
 			}
 		}
-		rows[y] = paintRGB(b.String(), hueRGB(hue), bloom != BloomOff)
+		rows[y] = paintRGB(b.String(), style.HueRGB(o.Hue), o.Bloom != BloomOff)
 	}
 	return strings.Join(rows, "\n")
 }
 
-var bayer4 = [4][4]float64{{.5, 8.5, 2.5, 10.5}, {12.5, 4.5, 14.5, 6.5}, {3.5, 11.5, 1.5, 9.5}, {15.5, 7.5, 13.5, 5.5}}
-
 func fnvSeed(name string) uint32 {
-	// JavaScript's reference hashes UTF-16 charCodeAt units, not UTF-8 bytes.
 	h := uint32(2166136261)
 	for _, r := range name {
 		if r <= 0xffff {
@@ -318,42 +362,6 @@ func avatarIndex(y, x int, vertical bool) int {
 	return y*4 + minInt(x, 7-x)
 }
 
-func ditherHue(c DitherColor) int {
-	switch c {
-	case DitherBlue:
-		return 215
-	case DitherGreen:
-		return 145
-	case DitherPink:
-		return 325
-	case DitherOrange:
-		return 30
-	case DitherRed:
-		return 0
-	case DitherGrey:
-		return 0
-	}
-	return 270
-}
-
-func hueRGB(h int) [3]int {
-	h = ((h % 360) + 360) % 360
-	switch {
-	case h < 20 || h >= 345:
-		return [3]int{240, 70, 70}
-	case h < 65:
-		return [3]int{255, 150, 50}
-	case h < 180:
-		return [3]int{40, 210, 110}
-	case h < 240:
-		return [3]int{53, 143, 243}
-	case h < 310:
-		return [3]int{150, 110, 255}
-	default:
-		return [3]int{240, 90, 190}
-	}
-}
-
 func ditherFill(v DitherVariant, width, density int) string {
 	g := ditherGlyph(v, density, width)
 	return strings.Repeat(g, maxInt(1, width/3))
@@ -372,40 +380,10 @@ func ditherGlyph(v DitherVariant, x, y int) string {
 	}
 }
 
-func bloomDensity(b Bloom, hovered, pressed bool) int {
-	d := 0
-	if b == BloomLow {
-		d = 1
-	}
-	if b == BloomHigh {
-		d = 2
-	}
-	if b == BloomAura {
-		d = 3
-	}
-	if hovered {
-		d++
-	}
-	if pressed {
-		d++
-	}
-	return d
-}
-
-func ditherANSI(c DitherColor, bright bool) int {
-	colors := map[DitherColor]int{DitherGreen: 46, DitherBlue: 33, DitherPurple: 99, DitherPink: 205, DitherOrange: 208, DitherRed: 196, DitherGrey: 244}
-	v, ok := colors[c]
-	if !ok {
-		v = colors[DitherPurple]
-	}
-	if bright && v < 240 {
-		v++
-	}
-	return v
-}
-
 // DitherColorCode is useful when composing a component with custom ANSI.
-func DitherColorCode(c DitherColor) string { return fmt.Sprintf("\x1b[38;5;%dm", ditherANSI(c, false)) }
+func DitherColorCode(c DitherColor) string {
+	return fmt.Sprintf("\x1b[38;5;%dm", c.ANSI256(false))
+}
 
 func paint256(value string, color int) string {
 	return fmt.Sprintf("\x1b[38;5;%dm%s\x1b[0m", color, value)
@@ -418,4 +396,8 @@ func paintRGB(value string, rgb [3]int, bright bool) string {
 		rgb[2] = minInt(255, rgb[2]+20)
 	}
 	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", rgb[0], rgb[1], rgb[2], value)
+}
+
+func runeWidth(s string) int {
+	return displayWidth(s)
 }
